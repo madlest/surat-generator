@@ -1,6 +1,6 @@
 #Field yang digunakan untuk membuat surat secara umum
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 class SuratBase(BaseModel):
     nomor_surat: str

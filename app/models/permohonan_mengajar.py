@@ -1,6 +1,6 @@
 # Field yang digunakan untuk membuat surat permohonan mengajar
 from datetime import date
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, Field, computed_field
 from .base import SuratBase
 
 class PermohonanMengajarBatchInfo(SuratBase):
@@ -14,9 +14,9 @@ class PermohonanMengajarBatchInfo(SuratBase):
         return len(self.lampirans)
 
 class PermohonanMengajarRecipient(BaseModel):
-    nama_dosen: str
-    mata_kuliah: str
-    semester: str
+    nama_dosen: str = Field(min_length=1)
+    mata_kuliah: str = Field(min_length=1)
+    semester: str = Field(min_length=1)
 
 class PermohonanMengajarRequest(BaseModel):
     batch_info: PermohonanMengajarBatchInfo
