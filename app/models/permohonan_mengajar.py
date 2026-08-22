@@ -12,6 +12,7 @@ class LampiranItem(BaseModel):
 
 
 class PermohonanMengajarBatchInfo(SuratBase):
+    program_studi: str = Field(min_length=1)
     tahun_akademik: str
     tanggal_mulai_perkuliahan: date
     lampirans: list[LampiranItem]

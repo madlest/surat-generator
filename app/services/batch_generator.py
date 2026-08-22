@@ -69,7 +69,10 @@ def generate_batch(
     individual_dir = working_path / "individual"
     individual_dir.mkdir(parents=True, exist_ok=True)
 
-    lampiran_paths = [item.file_path for item in batch_info.lampirans]
+    lampiran_paths: list[str] = [
+    item.file_path for item in batch_info.lampirans if item.file_path is not None
+    ]
+
     missing = [
         item.judul for item in batch_info.lampirans if not item.file_path
     ]
