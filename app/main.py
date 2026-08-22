@@ -6,8 +6,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers import permohonan_mengajar
 
-# Tambahkan root_path di sini
-app = FastAPI(title="Surat Generator", root_path="/surat-generator")
+# Tanpa root_path karena aplikasi sudah jalan langsung di root domain (/)
+app = FastAPI(title="Surat Generator")
 
 app.include_router(permohonan_mengajar.router)
 
