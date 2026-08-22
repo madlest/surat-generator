@@ -13,6 +13,7 @@
       :root {
         --paper: #ffffff;
         --paper-raised: #ffffff;
+        --page-bg: #edf6f7;
         --panel: #f5fafb;
         --ink: #1b2a2e;
         --ink-soft: #5c7278;
@@ -28,6 +29,24 @@
         --radius: 3px;
       }
 
+      body.dark {
+        --paper: #152326;
+        --paper-raised: #1d3034;
+        --page-bg: #0f1a1c;
+        --panel: #20383d;
+        --ink: #e8f1f2;
+        --ink-soft: #a9c0c4;
+        --teal: #55b4c8;
+        --teal-dark: #8bd6e3;
+        --teal-tint: #1e4149;
+        --line: #34535a;
+        --line-strong: #52747c;
+        --error: #f09a82;
+        --error-bg: #482b2a;
+        --success: #8fd1aa;
+        --success-tint: #214335;
+      }
+
       * {
         box-sizing: border-box;
         min-width: 0;
@@ -35,12 +54,72 @@
 
       body {
         margin: 0;
-        background: var(--paper);
+        background-color: var(--page-bg);
+        background-image:
+          linear-gradient(135deg, rgba(20, 112, 137, 0.045) 25%, transparent 25%),
+          linear-gradient(315deg, rgba(20, 112, 137, 0.035) 25%, transparent 25%),
+          repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 31px,
+            rgba(20, 112, 137, 0.025) 32px
+          ),
+          repeating-linear-gradient(
+            90deg,
+            transparent 0,
+            transparent 31px,
+            rgba(20, 112, 137, 0.025) 32px
+          );
+        background-size: 96px 96px, 96px 96px, 32px 32px, 32px 32px;
         color: var(--ink);
         font-family: "Inter", sans-serif;
         font-size: 15px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
+        transition: background-color 0.35s ease, color 0.35s ease;
+      }
+
+      header.masthead,
+      .step,
+      input,
+      select,
+      .lampiran-row,
+      .recipient-row,
+      .drag-handle,
+      .remove-btn,
+      .add-btn,
+      .mode-toggle,
+      .mode-toggle button,
+      .date-picker-btn,
+      .status {
+        transition:
+          background-color 0.35s ease,
+          color 0.35s ease,
+          border-color 0.35s ease,
+          box-shadow 0.35s ease,
+          transform 0.25s ease;
+      }
+
+      @keyframes fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes row-enter {
+        from {
+          opacity: 0;
+          transform: translateX(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
       }
 
       .page {
@@ -52,8 +131,12 @@
       header.masthead {
         text-align: center;
         margin-bottom: 40px;
-        padding-bottom: 28px;
-        border-bottom: 2px solid var(--line);
+        padding: 24px 28px 28px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-bottom: 2px solid var(--teal);
+        border-radius: var(--radius);
+        animation: fade-up 0.5s ease both;
       }
 
       header.masthead .eyebrow {
@@ -97,6 +180,23 @@
         border-radius: var(--radius);
         padding: 28px 28px 30px;
         margin-bottom: 20px;
+        animation: fade-up 0.5s ease both;
+      }
+      .step:nth-of-type(2) {
+        animation-delay: 0.08s;
+      }
+      .step:nth-of-type(3) {
+        animation-delay: 0.16s;
+      }
+      .step:nth-of-type(4) {
+        animation-delay: 0.24s;
+      }
+      .step:nth-of-type(5) {
+        animation-delay: 0.32s;
+      }
+      .step:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(27, 42, 46, 0.07);
       }
 
       .step-head {
@@ -248,10 +348,47 @@
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: var(--radius);
+        animation: row-enter 0.35s ease both;
       }
 
       .lampiran-row {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
+      }
+      .lampiran-order {
+        align-self: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 3px 7px;
+        border: 1px solid var(--teal);
+        border-radius: 50%;
+        color: var(--teal-dark);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        text-align: center;
+      }
+      .drag-handle {
+        align-self: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        background: var(--paper-raised);
+        color: var(--ink-soft);
+        font-size: 18px;
+        line-height: 1;
+        cursor: grab;
+      }
+      .drag-handle:active {
+        cursor: grabbing;
+      }
+      .drag-handle:hover {
+        color: var(--teal-dark);
+        background: var(--teal-tint);
+      }
+      .lampiran-row.dragging {
+        opacity: 0.55;
       }
       .recipient-row {
         grid-template-columns:
@@ -344,6 +481,50 @@
         margin-top: 8px;
       }
 
+      .theme-toggle {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 10;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid var(--line-strong);
+        border-radius: 50%;
+        background: var(--paper-raised);
+        color: var(--teal-dark);
+        font-size: 21px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 5px 16px rgba(27, 42, 46, 0.16);
+        transition:
+          background 0.2s ease,
+          color 0.2s ease,
+          border-color 0.35s ease,
+          transform 0.2s ease;
+      }
+      .theme-toggle:hover {
+        background: var(--teal-tint);
+        transform: translateY(-2px);
+      }
+      #theme-icon {
+        display: inline-block;
+        transition: transform 0.35s ease;
+      }
+      body.dark #theme-icon {
+        transform: rotate(180deg);
+      }
+
+      .page-footer {
+        margin-top: 28px;
+        padding: 18px 12px 0;
+        border-top: 1px solid var(--line);
+        color: var(--ink-soft);
+        font-size: 12px;
+        text-align: center;
+        transition: color 0.35s ease, border-color 0.35s ease;
+      }
+
       .stamp {
         width: 66px;
         height: 66px;
@@ -426,13 +607,46 @@
           grid-template-columns: 1fr;
         }
         .lampiran-row {
-          grid-template-columns: 1fr;
+          grid-template-columns: auto auto 1fr auto;
+        }
+        .lampiran-row .field {
+          grid-column: 1 / -1;
+        }
+        .lampiran-row .lampiran-order {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .lampiran-row .drag-handle {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        .lampiran-row .remove-btn {
+          grid-column: 4;
+          grid-row: 1;
         }
         .recipient-row {
           grid-template-columns: 1fr;
         }
         .step {
           padding: 20px;
+        }
+        .theme-toggle {
+          right: 14px;
+          bottom: 14px;
+          width: 38px;
+          height: 38px;
+          font-size: 17px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
         }
       }
     </style>
@@ -443,8 +657,8 @@
         <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
         <h1>Surat Generator</h1>
         <p>
-          Buat dan kirim surat resmi ke banyak penerima sekaligus, tanpa mail
-          merge manual.
+          Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge
+          manual.
         </p>
         <span class="letter-type-tag">Jenis surat: Permohonan Mengajar</span>
       </header>
@@ -649,7 +863,21 @@
           <div class="status" id="status" role="status" aria-live="polite"></div>
         </section>
       </form>
+      <footer class="page-footer">
+        Universitas Muhammadiyah Banjarmasin - Fakultas Farmasi &copy;
+        <span id="footer-year"></span>
+      </footer>
     </div>
+    <button
+      type="button"
+      class="theme-toggle"
+      id="theme-toggle"
+      aria-label="Gunakan mode gelap"
+      aria-pressed="false"
+      title="Gunakan mode gelap"
+    >
+      <span id="theme-icon" aria-hidden="true">☾</span>
+    </button>
 
     <script>
       (function () {
@@ -658,8 +886,34 @@
         const statusEl = document.getElementById("status");
         const submitBtn = document.getElementById("submit-btn");
         const stampEl = document.getElementById("stamp");
+        const themeToggle = document.getElementById("theme-toggle");
+        const themeIcon = document.getElementById("theme-icon");
+        document.getElementById("footer-year").textContent =
+          new Date().getFullYear();
         let lampiranRowCount = 0;
         let recipientRowCount = 0;
+        let draggedLampiranRow = null;
+
+        function applyTheme(isDark) {
+          document.body.classList.toggle("dark", isDark);
+          themeIcon.textContent = isDark ? "☀" : "☾";
+          themeToggle.setAttribute("aria-pressed", String(isDark));
+          themeToggle.setAttribute(
+            "aria-label",
+            isDark ? "Gunakan mode terang" : "Gunakan mode gelap",
+          );
+          themeToggle.title = isDark
+            ? "Gunakan mode terang"
+            : "Gunakan mode gelap";
+          localStorage.setItem("surat-generator-theme", isDark ? "dark" : "light");
+        }
+
+        const savedTheme = localStorage.getItem("surat-generator-theme");
+        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+        applyTheme(savedTheme ? savedTheme === "dark" : prefersDark);
+        themeToggle.addEventListener("click", () => {
+          applyTheme(!document.body.classList.contains("dark"));
+        });
 
         function formatDateIndonesia(value) {
           if (!value) return "";
@@ -717,12 +971,58 @@
           });
         });
 
+        lampiranList.addEventListener("dragover", (event) => {
+          if (!draggedLampiranRow) return;
+          event.preventDefault();
+
+          const targetRow = event.target.closest(".lampiran-row");
+          if (!targetRow || targetRow === draggedLampiranRow) return;
+
+          const targetMiddle =
+            targetRow.getBoundingClientRect().top +
+            targetRow.getBoundingClientRect().height / 2;
+          lampiranList.insertBefore(
+            draggedLampiranRow,
+            event.clientY < targetMiddle ? targetRow : targetRow.nextSibling,
+          );
+          updateLampiranNumbers();
+        });
+
+        function updateLampiranNumbers() {
+          lampiranList.querySelectorAll(".lampiran-row").forEach((row, index) => {
+            const order = row.querySelector(".lampiran-order");
+            order.textContent = index + 1;
+            order.setAttribute("aria-label", `Urutan lampiran ${index + 1}`);
+          });
+        }
+
+        function setupLampiranDrag(row) {
+          const dragHandle = row.querySelector(".drag-handle");
+          dragHandle.addEventListener("dragstart", (event) => {
+            draggedLampiranRow = row;
+            row.classList.add("dragging");
+            row.setAttribute("aria-grabbed", "true");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", row.dataset.lampiranId);
+          });
+          dragHandle.addEventListener("dragend", () => {
+            row.classList.remove("dragging");
+            row.setAttribute("aria-grabbed", "false");
+            draggedLampiranRow = null;
+            updateStampState();
+          });
+        }
+
         function addLampiranRow() {
           lampiranRowCount += 1;
           const rowId = lampiranRowCount;
           const row = document.createElement("div");
           row.className = "lampiran-row";
+          row.dataset.lampiranId = rowId;
+          row.setAttribute("aria-grabbed", "false");
           row.innerHTML = `
+      <span class="lampiran-order" aria-label="Urutan lampiran">${rowId}</span>
+      <button type="button" class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-label="Seret untuk mengubah urutan">&#9776;</button>
       <div class="field">
         <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
         <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
@@ -735,9 +1035,12 @@
     `;
           row.querySelector(".remove-btn").addEventListener("click", () => {
             row.remove();
+            updateLampiranNumbers();
             updateStampState();
           });
+          setupLampiranDrag(row);
           lampiranList.appendChild(row);
+          updateLampiranNumbers();
           updateStampState();
         }
         document
