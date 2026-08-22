@@ -355,20 +355,22 @@
         grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
       }
       .lampiran-order {
-        align-self: center;
-        min-width: 28px;
-        height: 28px;
+        align-self: end;
+        transform: translateY(-3px);
+        min-width: 34px;
+        height: 34px;
         padding: 3px 7px;
         border: 1px solid var(--teal);
         border-radius: 50%;
         color: var(--teal-dark);
         font-size: 12px;
         font-weight: 700;
-        line-height: 20px;
+        line-height: 26px;
         text-align: center;
       }
       .drag-handle {
-        align-self: center;
+        align-self: end;
+        transform: translateY(-3px);
         width: 34px;
         height: 34px;
         padding: 0;
@@ -380,6 +382,9 @@
         line-height: 1;
         cursor: grab;
       }
+      .lampiran-row .drag-handle {
+        align-self: end;
+      }
       .drag-handle:active {
         cursor: grabbing;
       }
@@ -390,16 +395,35 @@
       .lampiran-row.dragging {
         opacity: 0.55;
       }
+      .lampiran-row .remove-btn {
+        align-self: end;
+      }
       .recipient-row {
         grid-template-columns:
-          minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr)
-          auto;
+          auto minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr) auto;
+      }
+      .recipient-order {
+        align-self: end;
+        transform: translateY(-3px);
+        min-width: 34px;
+        height: 34px;
+        padding: 3px 7px;
+        border: 1px solid var(--teal);
+        border-radius: 50%;
+        color: var(--teal-dark);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 26px;
+        text-align: center;
+      }
+      .recipient-row .remove-btn {
+        align-self: end;
       }
 
       .remove-btn {
-        background: none;
-        border: 1px solid var(--line-strong);
-        color: var(--error);
+        background: var(--error);
+        border: 1px solid var(--error);
+        color: #fff;
         width: 34px;
         height: 34px;
         border-radius: var(--radius);
@@ -412,7 +436,8 @@
         flex-shrink: 0;
       }
       .remove-btn:hover {
-        background: var(--error-bg);
+        background: #8f2b19;
+        border-color: #8f2b19;
       }
 
       .add-btn {
@@ -615,17 +640,36 @@
         .lampiran-row .lampiran-order {
           grid-column: 1;
           grid-row: 1;
+          align-self: start;
+          margin-bottom: 0;
         }
         .lampiran-row .drag-handle {
           grid-column: 2;
           grid-row: 1;
+          align-self: start;
+          margin-bottom: 0;
         }
         .lampiran-row .remove-btn {
           grid-column: 4;
           grid-row: 1;
+          align-self: start;
         }
         .recipient-row {
-          grid-template-columns: 1fr;
+          grid-template-columns: auto 1fr auto;
+        }
+        .recipient-row .field {
+          grid-column: 1 / -1;
+        }
+        .recipient-row .recipient-order {
+          grid-column: 1;
+          grid-row: 1;
+          align-self: start;
+          margin-bottom: 0;
+        }
+        .recipient-row .remove-btn {
+          grid-column: 3;
+          grid-row: 1;
+          margin-bottom: 0;
         }
         .step {
           padding: 20px;
@@ -638,10 +682,13 @@
           flex: 1 1 calc(100% - 36px);
           min-width: 0;
         }
+        .step-head .step-num {
+          align-self: center;
+        }
         .step-head .hint {
           flex: 0 1 auto;
           max-width: calc(100% - 36px);
-          margin-left: 36px;
+          margin-left: 0;
           white-space: normal;
         }
         .theme-toggle {
@@ -1045,7 +1092,7 @@
         <label for="lampiran-file-${rowId}">File PDF</label>
         <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
       </div>
-      <button type="button" class="remove-btn" title="Hapus lampiran ini">&times;</button>
+      <button type="button" class="remove-btn" title="Hapus lampiran ini" aria-label="Hapus lampiran ini">&#128465;</button>
     `;
           row.querySelector(".remove-btn").addEventListener("click", () => {
             row.remove();
@@ -1068,6 +1115,7 @@
           const row = document.createElement("div");
           row.className = "recipient-row";
           row.innerHTML = `
+      <span class="recipient-order" aria-label="Urutan dosen">${rowId}</span>
       <div class="field">
         <label for="rec-nama-${rowId}">Nama Dosen</label>
         <input type="text" id="rec-nama-${rowId}" class="rec-nama" placeholder="Isikan nama dosen" maxlength="150" required>
@@ -1080,14 +1128,26 @@
         <label for="rec-semester-${rowId}">Semester</label>
         <input type="text" id="rec-semester-${rowId}" class="rec-semester" placeholder="Isikan semester" maxlength="30" required>
       </div>
-      <button type="button" class="remove-btn" title="Hapus penerima ini">&times;</button>
+      <button type="button" class="remove-btn" title="Hapus penerima ini" aria-label="Hapus penerima ini">&#128465;</button>
     `;
           row.querySelector(".remove-btn").addEventListener("click", () => {
             row.remove();
+            updateRecipientNumbers();
             updateStampState();
           });
           recipientList.appendChild(row);
+          updateRecipientNumbers();
           updateStampState();
+        }
+
+        function updateRecipientNumbers() {
+          recipientList
+            .querySelectorAll(".recipient-row")
+            .forEach((row, index) => {
+              const order = row.querySelector(".recipient-order");
+              order.textContent = index + 1;
+              order.setAttribute("aria-label", `Urutan dosen ${index + 1}`);
+            });
         }
         document
           .getElementById("add-recipient")
