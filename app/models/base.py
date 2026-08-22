@@ -2,6 +2,9 @@
 from datetime import date
 from pydantic import BaseModel, computed_field
 
+from app.core.formatters import format_tanggal_indonesia
+
+
 class SuratBase(BaseModel):
     nomor_surat: str
     tempat_surat: str
@@ -11,4 +14,4 @@ class SuratBase(BaseModel):
     @computed_field
     @property
     def tanggal_surat_formatted(self) -> str:
-        return self.tanggal_surat.strftime('%d %B %Y')
+        return format_tanggal_indonesia(self.tanggal_surat)
