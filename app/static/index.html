@@ -420,7 +420,7 @@
                 type="text"
                 id="nomor_surat"
                 required
-                placeholder="001/FF-UMBJM/IX/2026"
+                placeholder="Isikan nomor surat"
               />
             </div>
             <div class="field">
@@ -429,12 +429,12 @@
                 type="text"
                 id="tempat_surat"
                 required
-                placeholder="Banjarmasin"
+                placeholder="Isikan tempat surat"
               />
             </div>
             <div class="field">
               <label for="tanggal_surat">Tanggal Surat</label>
-              <input type="date" id="tanggal_surat" required />
+              <input type="date" id="tanggal_surat" lang="id-ID" required />
             </div>
             <div class="field">
               <label for="perihal_surat">Perihal</label>
@@ -442,7 +442,7 @@
                 type="text"
                 id="perihal_surat"
                 required
-                placeholder="Permohonan Mengajar"
+                placeholder="Isikan perihal surat"
               />
             </div>
           </div>
@@ -461,7 +461,7 @@
                 type="text"
                 id="program_studi"
                 required
-                placeholder="S1 Farmasi"
+                placeholder="Isikan program studi"
               />
             </div>
           </div>
@@ -472,14 +472,19 @@
                 type="text"
                 id="tahun_akademik"
                 required
-                placeholder="2026/2027"
+                placeholder="Isikan tahun akademik"
               />
             </div>
             <div class="field">
               <label for="tanggal_mulai_perkuliahan"
                 >Tanggal Mulai Perkuliahan</label
               >
-              <input type="date" id="tanggal_mulai_perkuliahan" required />
+              <input
+                type="date"
+                id="tanggal_mulai_perkuliahan"
+                lang="id-ID"
+                required
+              />
             </div>
           </div>
         </section>
@@ -560,7 +565,7 @@
           row.innerHTML = `
       <div class="field">
         <label>Judul Lampiran</label>
-        <input type="text" class="lampiran-judul" placeholder="Jadwal Kuliah" required>
+        <input type="text" class="lampiran-judul" placeholder="Isikan nama lampiran" required>
       </div>
       <div class="field">
         <label>File PDF</label>
@@ -586,15 +591,15 @@
           row.innerHTML = `
       <div class="field">
         <label>Nama Dosen</label>
-        <input type="text" class="rec-nama" placeholder="apt. Budi Santoso, M.Farm" required>
+        <input type="text" class="rec-nama" placeholder="Isikan nama dosen" required>
       </div>
       <div class="field">
         <label>Mata Kuliah</label>
-        <input type="text" class="rec-matkul" placeholder="Farmakologi Dasar" required>
+        <input type="text" class="rec-matkul" placeholder="Isikan mata kuliah" required>
       </div>
       <div class="field">
         <label>Semester</label>
-        <input type="text" class="rec-semester" placeholder="V (Lima)" required>
+        <input type="text" class="rec-semester" placeholder="Isikan semester" required>
       </div>
       <button type="button" class="remove-btn" title="Hapus penerima ini">&times;</button>
     `;
