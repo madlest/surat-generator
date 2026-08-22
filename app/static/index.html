@@ -164,6 +164,10 @@
         text-transform: uppercase;
         letter-spacing: 0.03em;
       }
+      .field-hint {
+        color: var(--ink-soft);
+        font-size: 11.5px;
+      }
 
       input[type="text"],
       input[type="date"],
@@ -188,15 +192,34 @@
 
       .date-input {
         position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
       }
       .date-display {
-        cursor: pointer;
+        min-width: 0;
       }
       .date-native {
         position: absolute;
-        inset: 0;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        border: 0;
         opacity: 0;
+        pointer-events: none;
+      }
+      .date-picker-btn {
+        width: 42px;
+        padding: 0;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        background: var(--paper-raised);
+        color: var(--teal-dark);
+        font-size: 18px;
         cursor: pointer;
+      }
+      .date-picker-btn:hover {
+        background: var(--teal-tint);
       }
       .date-input:focus-within .date-display {
         outline: none;
@@ -458,9 +481,10 @@
                   type="text"
                   class="date-display"
                   id="tanggal_surat_display"
-                  placeholder="DD/MM/YYYY"
-                  readonly
-                  aria-hidden="true"
+                  placeholder="Contoh: 22/08/2026"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  aria-describedby="tanggal_surat_hint"
                 />
                 <input
                   type="date"
@@ -470,7 +494,19 @@
                   required
                   aria-label="Tanggal Surat"
                 />
+                <button
+                  type="button"
+                  class="date-picker-btn"
+                  data-date-target="tanggal_surat"
+                  title="Pilih tanggal dari kalender"
+                  aria-label="Pilih tanggal dari kalender"
+                >
+                  &#128197;
+                </button>
               </div>
+              <small class="field-hint" id="tanggal_surat_hint"
+                >Format: DD/MM/YYYY</small
+              >
             </div>
             <div class="field">
               <label for="perihal_surat">Perihal</label>
@@ -523,9 +559,10 @@
                   type="text"
                   class="date-display"
                   id="tanggal_mulai_perkuliahan_display"
-                  placeholder="DD/MM/YYYY"
-                  readonly
-                  aria-hidden="true"
+                  placeholder="Contoh: 22/08/2026"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  aria-describedby="tanggal_mulai_perkuliahan_hint"
                 />
                 <input
                   type="date"
@@ -535,7 +572,19 @@
                   required
                   aria-label="Tanggal Mulai Perkuliahan"
                 />
+                <button
+                  type="button"
+                  class="date-picker-btn"
+                  data-date-target="tanggal_mulai_perkuliahan"
+                  title="Pilih tanggal dari kalender"
+                  aria-label="Pilih tanggal dari kalender"
+                >
+                  &#128197;
+                </button>
               </div>
+              <small class="field-hint" id="tanggal_mulai_perkuliahan_hint"
+                >Format: DD/MM/YYYY</small
+              >
             </div>
           </div>
         </section>
@@ -618,12 +667,53 @@
           return `${day}/${month}/${year}`;
         }
 
+        function parseDateIndonesia(value) {
+          const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (!match) return "";
+
+          const [, day, month, year] = match;
+          const date = new Date(Number(year), Number(month) - 1, Number(day));
+          if (
+            date.getFullYear() !== Number(year) ||
+            date.getMonth() !== Number(month) - 1 ||
+            date.getDate() !== Number(day)
+          ) {
+            return "";
+          }
+          return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+        }
+
         document.querySelectorAll(".date-native").forEach((dateInput) => {
           const displayInput = document.getElementById(
             `${dateInput.id}_display`,
           );
-          dateInput.addEventListener("change", () => {
+          const syncDisplay = () => {
             displayInput.value = formatDateIndonesia(dateInput.value);
+            dateInput.setCustomValidity("");
+          };
+
+          dateInput.addEventListener("change", syncDisplay);
+          displayInput.addEventListener("input", () => {
+            const isoDate = parseDateIndonesia(displayInput.value);
+            dateInput.value = isoDate;
+            dateInput.setCustomValidity(
+              displayInput.value && !isoDate
+                ? "Gunakan format DD/MM/YYYY dan masukkan tanggal yang valid."
+                : "",
+            );
+            updateStampState();
+          });
+
+          const pickerButton = document.querySelector(
+            `[data-date-target="${dateInput.id}"]`,
+          );
+          pickerButton.addEventListener("click", () => {
+            if (typeof dateInput.showPicker === "function") {
+              dateInput.showPicker();
+            } else {
+              dateInput.focus();
+              dateInput.click();
+            }
           });
         });
 
