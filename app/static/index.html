@@ -630,6 +630,20 @@
         .step {
           padding: 20px;
         }
+        .step-head {
+          flex-wrap: wrap;
+          align-items: flex-start;
+        }
+        .step-head h2 {
+          flex: 1 1 calc(100% - 36px);
+          min-width: 0;
+        }
+        .step-head .hint {
+          flex: 0 1 auto;
+          max-width: calc(100% - 36px);
+          margin-left: 36px;
+          white-space: normal;
+        }
         .theme-toggle {
           right: 14px;
           bottom: 14px;
