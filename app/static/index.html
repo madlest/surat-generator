@@ -154,6 +154,7 @@
       }
       .field.full {
         grid-column: 1 / -1;
+        margin-bottom: 16px;
       }
 
       label {
@@ -180,6 +181,24 @@
 
       input:focus,
       select:focus {
+        outline: none;
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px rgba(20, 112, 137, 0.15);
+      }
+
+      .date-input {
+        position: relative;
+      }
+      .date-display {
+        cursor: pointer;
+      }
+      .date-native {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .date-input:focus-within .date-display {
         outline: none;
         border-color: var(--teal);
         box-shadow: 0 0 0 3px rgba(20, 112, 137, 0.15);
@@ -434,7 +453,24 @@
             </div>
             <div class="field">
               <label for="tanggal_surat">Tanggal Surat</label>
-              <input type="date" id="tanggal_surat" lang="id-ID" required />
+              <div class="date-input">
+                <input
+                  type="text"
+                  class="date-display"
+                  id="tanggal_surat_display"
+                  placeholder="DD/MM/YYYY"
+                  readonly
+                  aria-hidden="true"
+                />
+                <input
+                  type="date"
+                  class="date-native"
+                  id="tanggal_surat"
+                  lang="id-ID"
+                  required
+                  aria-label="Tanggal Surat"
+                />
+              </div>
             </div>
             <div class="field">
               <label for="perihal_surat">Perihal</label>
@@ -472,19 +508,34 @@
                 type="text"
                 id="tahun_akademik"
                 required
-                placeholder="Isikan tahun akademik"
+                placeholder="Isikan tahun akademik, contoh: 2026/2027"
+                pattern="[0-9]{4}/[0-9]{4}"
+                maxlength="9"
+                title="Gunakan format tahun akademik, misalnya 2026/2027"
               />
             </div>
             <div class="field">
               <label for="tanggal_mulai_perkuliahan"
                 >Tanggal Mulai Perkuliahan</label
               >
-              <input
-                type="date"
-                id="tanggal_mulai_perkuliahan"
-                lang="id-ID"
-                required
-              />
+              <div class="date-input">
+                <input
+                  type="text"
+                  class="date-display"
+                  id="tanggal_mulai_perkuliahan_display"
+                  placeholder="DD/MM/YYYY"
+                  readonly
+                  aria-hidden="true"
+                />
+                <input
+                  type="date"
+                  class="date-native"
+                  id="tanggal_mulai_perkuliahan"
+                  lang="id-ID"
+                  required
+                  aria-label="Tanggal Mulai Perkuliahan"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -546,7 +597,7 @@
               Generate &amp; Unduh ZIP
             </button>
           </div>
-          <div class="status" id="status"></div>
+          <div class="status" id="status" role="status" aria-live="polite"></div>
         </section>
       </form>
     </div>
@@ -558,18 +609,37 @@
         const statusEl = document.getElementById("status");
         const submitBtn = document.getElementById("submit-btn");
         const stampEl = document.getElementById("stamp");
+        let lampiranRowCount = 0;
+        let recipientRowCount = 0;
+
+        function formatDateIndonesia(value) {
+          if (!value) return "";
+          const [year, month, day] = value.split("-");
+          return `${day}/${month}/${year}`;
+        }
+
+        document.querySelectorAll(".date-native").forEach((dateInput) => {
+          const displayInput = document.getElementById(
+            `${dateInput.id}_display`,
+          );
+          dateInput.addEventListener("change", () => {
+            displayInput.value = formatDateIndonesia(dateInput.value);
+          });
+        });
 
         function addLampiranRow() {
+          lampiranRowCount += 1;
+          const rowId = lampiranRowCount;
           const row = document.createElement("div");
           row.className = "lampiran-row";
           row.innerHTML = `
       <div class="field">
-        <label>Judul Lampiran</label>
-        <input type="text" class="lampiran-judul" placeholder="Isikan nama lampiran" required>
+        <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
+        <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
       </div>
       <div class="field">
-        <label>File PDF</label>
-        <input type="file" class="lampiran-file" accept=".pdf" required>
+        <label for="lampiran-file-${rowId}">File PDF</label>
+        <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
       </div>
       <button type="button" class="remove-btn" title="Hapus lampiran ini">&times;</button>
     `;
@@ -586,20 +656,22 @@
         addLampiranRow();
 
         function addRecipientRow() {
+          recipientRowCount += 1;
+          const rowId = recipientRowCount;
           const row = document.createElement("div");
           row.className = "recipient-row";
           row.innerHTML = `
       <div class="field">
-        <label>Nama Dosen</label>
-        <input type="text" class="rec-nama" placeholder="Isikan nama dosen" required>
+        <label for="rec-nama-${rowId}">Nama Dosen</label>
+        <input type="text" id="rec-nama-${rowId}" class="rec-nama" placeholder="Isikan nama dosen" maxlength="150" required>
       </div>
       <div class="field">
-        <label>Mata Kuliah</label>
-        <input type="text" class="rec-matkul" placeholder="Isikan mata kuliah" required>
+        <label for="rec-matkul-${rowId}">Mata Kuliah</label>
+        <input type="text" id="rec-matkul-${rowId}" class="rec-matkul" placeholder="Isikan mata kuliah" maxlength="150" required>
       </div>
       <div class="field">
-        <label>Semester</label>
-        <input type="text" class="rec-semester" placeholder="Isikan semester" required>
+        <label for="rec-semester-${rowId}">Semester</label>
+        <input type="text" id="rec-semester-${rowId}" class="rec-semester" placeholder="Isikan semester" maxlength="30" required>
       </div>
       <button type="button" class="remove-btn" title="Hapus penerima ini">&times;</button>
     `;
@@ -690,6 +762,21 @@
               lampirans.push({ judul: el.value });
               lampiranFiles.push(lampiranFileEls[i].files[0]);
             });
+
+            const invalidLampiran = lampiranFiles.find(
+              (file) =>
+                !file ||
+                (!file.type.includes("pdf") &&
+                  !file.name.toLowerCase().endsWith(".pdf")) ||
+                file.size > 10 * 1024 * 1024,
+            );
+            if (invalidLampiran) {
+              setStatus(
+                "error",
+                "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.",
+              );
+              return;
+            }
 
             const batchInfo = {
               nomor_surat: document.getElementById("nomor_surat").value,
