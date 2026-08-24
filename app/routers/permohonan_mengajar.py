@@ -32,10 +32,11 @@ def generate_surat_permohonan_mengajar(
     background_tasks: BackgroundTasks,
     batch_info: str = Form(...),
     recipients_mode: str = Form(...),
-    lampiran_files: list[UploadFile] = File(...),
+    lampiran_files: list[UploadFile] | None = File(default=None),
     recipients_json: str | None = Form(default=None),
     recipients_csv: UploadFile | None = File(default=None),
 ):
+    lampiran_files = lampiran_files or []
     job_id = uuid.uuid4().hex
     working_dir = Path(settings.temp_dir) / f"job_{job_id}"
     working_dir.mkdir(parents=True, exist_ok=True)

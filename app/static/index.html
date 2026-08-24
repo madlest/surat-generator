@@ -1177,16 +1177,19 @@
                 el.required = isListMode;
               });
 
+            // Tambahan: toggle required untuk file CSV mengikuti mode
+            document.getElementById("recipients_csv").required = !isListMode;
+
             updateStampState();
           });
         });
-
+        document.getElementById("recipients_csv").addEventListener("change", updateStampState);
         document
           .getElementById("download-template")
           .addEventListener("click", (e) => {
             e.preventDefault();
             const csv =
-              'nama_dosen,mata_kuliah,semester\n"apt. Nama Dosen, M.Farm",Nama Mata Kuliah,V (Lima)\n';
+              'nama_dosen,mata_kuliah,semester\n"apt. Fulan, M.Farm",Farmakologi,V (Lima)\n';
             const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
