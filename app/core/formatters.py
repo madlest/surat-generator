@@ -1,5 +1,4 @@
-# Untuk format tanggal Indonesia, gunakan fungsi ini. Misal:
-# from app.core.formatters import format_tanggal_indonesia
+# Formatters untuk keperluan surat, misal format tanggal, nama file, dsb.
 
 from datetime import date
 import re
@@ -33,3 +32,37 @@ def build_recipient_filename(nama_dosen: str, mata_kuliah: str, semester: str) -
     """
     raw_name = f"{nama_dosen} - {mata_kuliah} - Semester {semester}"
     return f"{sanitize_filename(raw_name)}.pdf"
+
+def angka_ke_terbilang(n: int) -> str:
+    """
+    Ubah angka non-negatif jadi kata bilangan Bahasa Indonesia.
+    Mendukung sampai ratusan, cukup untuk rentang wajar jumlah lampiran.
+    """
+    satuan = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan"]
+
+    if n == 0:
+        return "nol"
+    if n < 10:
+        return satuan[n]
+    if n < 20:
+        return angka_ke_terbilang(n - 10) + " belas"
+    if n < 100:
+        sisa = n % 10
+        return angka_ke_terbilang(n // 10) + " puluh" + (f" {angka_ke_terbilang(sisa)}" if sisa else "")
+    if n < 200:
+        sisa = n - 100
+        return "seratus" + (f" {angka_ke_terbilang(sisa)}" if sisa else "")
+    if n < 1000:
+        sisa = n % 100
+        return angka_ke_terbilang(n // 100) + " ratus" + (f" {angka_ke_terbilang(sisa)}" if sisa else "")
+    raise ValueError("angka_ke_terbilang hanya mendukung angka di bawah 1000")
+
+
+def format_jumlah_lampiran(jumlah: int) -> str:
+    """
+    Format jumlah lampiran sesuai konvensi surat resmi Indonesia:
+    "3 (tiga) berkas", atau "-" kalau tidak ada lampiran sama sekali.
+    """
+    if jumlah == 0:
+        return "-"
+    return f"{jumlah} ({angka_ke_terbilang(jumlah)}) berkas"
