@@ -3,35 +3,19 @@
 from datetime import date
 from pydantic import BaseModel, Field, computed_field
 from .base import SuratBase
-from app.core.formatters import format_tanggal_indonesia, format_jumlah_lampiran
-
-
-class LampiranItem(BaseModel):
-    judul: str = Field(min_length=1)
-    file_path: str | None = None
-
+from app.core.formatters import format_tanggal_indonesia
 
 class PermohonanMengajarBatchInfo(SuratBase):
     program_studi: str = Field(min_length=1)
     tahun_akademik: str
     tanggal_mulai_perkuliahan: date
-    lampirans: list[LampiranItem]
-
-    @computed_field
-    @property
-    def jumlah_lampiran(self) -> int:
-        return len(self.lampirans)
-
+    
     @computed_field
     @property
     def tanggal_mulai_perkuliahan_formatted(self) -> str:
+        
         return format_tanggal_indonesia(self.tanggal_mulai_perkuliahan)
         
-    @computed_field
-    @property
-    def jumlah_lampiran_display(self) -> str:
-        return format_jumlah_lampiran(len(self.lampirans))
-
 
 class PermohonanMengajarRecipient(BaseModel):
     nama_dosen: str = Field(min_length=1)
