@@ -1,7 +1,3 @@
-# Fungsi ini menerima permintaan untuk menghasilkan
-# dokumen permohonan mengajar (cover letter + lampiran) untuk banyak recipient,
-# lalu menggabungkan hasilnya menjadi satu file zip yang bisa diunduh.
-
 import json
 import shutil
 import uuid
@@ -12,6 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
 from app.core.config import settings
+from app.core.job_store import job_store
 from app.models.permohonan_mengajar import PermohonanMengajarBatchInfo
 from app.services.batch_generator import BatchGenerationError, generate_batch
 from app.services.document_generator import DocumentGenerationError
@@ -27,8 +24,34 @@ router = APIRouter(prefix="/surat/permohonan-mengajar", tags=["Permohonan Mengaj
 TEMPLATE_PATH = "app/templates/template_spm_generate.docx"
 
 
+def _run_batch_job(job_id: str, batch_info_obj, recipients, working_dir: str):
+    """
+    Dijalankan di background SETELAH response awal (job_id) sudah
+    dikirim ke client. Update job_store tiap recipient selesai,
+    supaya bisa dilacak lewat endpoint /jobs/{job_id}/status.
+    """
+    try:
+        def on_progress(current: int, total: int):
+            job_store.update_progress(job_id, current)
+
+        zip_path = generate_batch(
+            template_path=TEMPLATE_PATH,
+            batch_info=batch_info_obj,
+            recipients=recipients,
+            working_dir=working_dir,
+            progress_callback=on_progress,
+        )
+        job_store.mark_done(job_id, zip_path)
+    except (DocumentGenerationError, PdfMergeError, BatchGenerationError) as e:
+        job_store.mark_error(job_id, str(e))
+        shutil.rmtree(working_dir, ignore_errors=True)
+    except Exception as e:
+        job_store.mark_error(job_id, f"Terjadi kesalahan tidak terduga: {e}")
+        shutil.rmtree(working_dir, ignore_errors=True)
+
+
 @router.post("/generate")
-def generate_surat_permohonan_mengajar(
+def start_generate_job(
     background_tasks: BackgroundTasks,
     batch_info: str = Form(...),
     recipients_mode: str = Form(...),
@@ -42,7 +65,6 @@ def generate_surat_permohonan_mengajar(
     working_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        # 1. Parse & validasi batch_info (dikirim sebagai JSON string)
         try:
             batch_info_dict = json.loads(batch_info)
         except json.JSONDecodeError as e:
@@ -53,7 +75,6 @@ def generate_surat_permohonan_mengajar(
         except ValidationError as e:
             raise HTTPException(status_code=422, detail=e.errors())
 
-        # 2. Jumlah file lampiran harus cocok dengan jumlah judul lampiran
         if len(lampiran_files) != len(batch_info_obj.lampirans):
             raise HTTPException(
                 status_code=400,
@@ -63,18 +84,14 @@ def generate_surat_permohonan_mengajar(
                 ),
             )
 
-        # 3. Simpan file lampiran ke working_dir, isi file_path tiap LampiranItem
-        #    (urutan file HARUS sejajar dengan urutan lampirans di batch_info)
         lampiran_dir = working_dir / "lampiran"
         lampiran_dir.mkdir(parents=True, exist_ok=True)
-
         for index, upload_file in enumerate(lampiran_files):
             dest_path = lampiran_dir / f"lampiran_{index}.pdf"
             with open(dest_path, "wb") as f:
                 shutil.copyfileobj(upload_file.file, f)
             batch_info_obj.lampirans[index].file_path = str(dest_path)
 
-        # 4. Parse recipients sesuai mode yang dipilih
         if recipients_mode == "list":
             if not recipients_json:
                 raise HTTPException(status_code=400, detail="recipients_json wajib diisi untuk mode 'list'.")
@@ -93,15 +110,7 @@ def generate_surat_permohonan_mengajar(
         else:
             raise HTTPException(status_code=400, detail="recipients_mode harus 'list' atau 'csv'.")
 
-        # 5. Generate seluruh batch
-        zip_path = generate_batch(
-            template_path=TEMPLATE_PATH,
-            batch_info=batch_info_obj,
-            recipients=recipients,
-            working_dir=str(working_dir),
-        )
-
-    except (RecipientParseError, DocumentGenerationError, PdfMergeError, BatchGenerationError) as e:
+    except RecipientParseError as e:
         shutil.rmtree(working_dir, ignore_errors=True)
         raise HTTPException(status_code=422, detail=str(e))
     except HTTPException:
@@ -111,8 +120,39 @@ def generate_surat_permohonan_mengajar(
         shutil.rmtree(working_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan tidak terduga: {e}")
 
-    # Folder kerja dihapus otomatis SETELAH file zip selesai dikirim ke client
+    # Validasi & penyimpanan file (cepat) sudah selesai di sini.
+    # Proses berat (generate + convert PDF per recipient) didaftarkan
+    # sebagai background task, supaya response ini bisa langsung
+    # kembali ke client tanpa menunggu semuanya selesai.
+    job_store.create_job(job_id=job_id, total=len(recipients))
+    background_tasks.add_task(
+        _run_batch_job, job_id, batch_info_obj, recipients, str(working_dir)
+    )
+
+    return {"job_id": job_id, "total": len(recipients)}
+
+
+@router.get("/jobs/{job_id}/status")
+def get_job_status(job_id: str):
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    return job
+
+
+@router.get("/jobs/{job_id}/download")
+def download_job_result(job_id: str, background_tasks: BackgroundTasks):
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    if job["status"] != "done":
+        raise HTTPException(status_code=409, detail="Dokumen belum selesai diproses.")
+
+    zip_path = job["zip_path"]
+    working_dir = Path(zip_path).parent
+
     background_tasks.add_task(shutil.rmtree, working_dir, ignore_errors=True)
+    background_tasks.add_task(job_store.delete, job_id)
 
     return FileResponse(
         path=zip_path,

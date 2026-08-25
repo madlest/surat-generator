@@ -56,8 +56,16 @@
         margin: 0;
         background-color: var(--page-bg);
         background-image:
-          linear-gradient(135deg, rgba(20, 112, 137, 0.045) 25%, transparent 25%),
-          linear-gradient(315deg, rgba(20, 112, 137, 0.035) 25%, transparent 25%),
+          linear-gradient(
+            135deg,
+            rgba(20, 112, 137, 0.045) 25%,
+            transparent 25%
+          ),
+          linear-gradient(
+            315deg,
+            rgba(20, 112, 137, 0.035) 25%,
+            transparent 25%
+          ),
           repeating-linear-gradient(
             0deg,
             transparent 0,
@@ -70,13 +78,19 @@
             transparent 31px,
             rgba(20, 112, 137, 0.025) 32px
           );
-        background-size: 96px 96px, 96px 96px, 32px 32px, 32px 32px;
+        background-size:
+          96px 96px,
+          96px 96px,
+          32px 32px,
+          32px 32px;
         color: var(--ink);
         font-family: "Inter", sans-serif;
         font-size: 15px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
-        transition: background-color 0.35s ease, color 0.35s ease;
+        transition:
+          background-color 0.35s ease,
+          color 0.35s ease;
       }
 
       header.masthead,
@@ -400,7 +414,8 @@
       }
       .recipient-row {
         grid-template-columns:
-          auto minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr) auto;
+          auto minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr)
+          auto;
       }
       .recipient-order {
         align-self: end;
@@ -547,7 +562,9 @@
         color: var(--ink-soft);
         font-size: 12px;
         text-align: center;
-        transition: color 0.35s ease, border-color 0.35s ease;
+        transition:
+          color 0.35s ease,
+          border-color 0.35s ease;
       }
 
       .stamp {
@@ -578,6 +595,32 @@
         transform: rotate(-8deg) scale(1.04);
         color: var(--success);
         border-color: var(--success);
+      }
+
+      .progress-wrap {
+        margin-top: 14px;
+        display: none;
+      }
+      .progress-wrap.show {
+        display: block;
+      }
+      .progress-track {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--teal);
+        transition: width 0.3s ease;
+      }
+      .progress-label {
+        margin-top: 6px;
+        font-size: 12.5px;
+        color: var(--ink-soft);
       }
 
       button.submit {
@@ -921,7 +964,18 @@
               Generate &amp; Unduh ZIP
             </button>
           </div>
-          <div class="status" id="status" role="status" aria-live="polite"></div>
+          <div
+            class="status"
+            id="status"
+            role="status"
+            aria-live="polite"
+          ></div>
+          <div class="progress-wrap" id="progress-wrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-label" id="progress-label"></div>
+          </div>
         </section>
       </form>
       <footer class="page-footer">
@@ -966,11 +1020,16 @@
           themeToggle.title = isDark
             ? "Gunakan mode terang"
             : "Gunakan mode gelap";
-          localStorage.setItem("surat-generator-theme", isDark ? "dark" : "light");
+          localStorage.setItem(
+            "surat-generator-theme",
+            isDark ? "dark" : "light",
+          );
         }
 
         const savedTheme = localStorage.getItem("surat-generator-theme");
-        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+        const prefersDark = window.matchMedia?.(
+          "(prefers-color-scheme: dark)",
+        ).matches;
         applyTheme(savedTheme ? savedTheme === "dark" : prefersDark);
         themeToggle.addEventListener("click", () => {
           applyTheme(!document.body.classList.contains("dark"));
@@ -1050,11 +1109,13 @@
         });
 
         function updateLampiranNumbers() {
-          lampiranList.querySelectorAll(".lampiran-row").forEach((row, index) => {
-            const order = row.querySelector(".lampiran-order");
-            order.textContent = index + 1;
-            order.setAttribute("aria-label", `Urutan lampiran ${index + 1}`);
-          });
+          lampiranList
+            .querySelectorAll(".lampiran-row")
+            .forEach((row, index) => {
+              const order = row.querySelector(".lampiran-order");
+              order.textContent = index + 1;
+              order.setAttribute("aria-label", `Urutan lampiran ${index + 1}`);
+            });
         }
 
         function setupLampiranDrag(row) {
@@ -1082,18 +1143,18 @@
           row.dataset.lampiranId = rowId;
           row.setAttribute("aria-grabbed", "false");
           row.innerHTML = `
-      <span class="lampiran-order" aria-label="Urutan lampiran">${rowId}</span>
-      <button type="button" class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-label="Seret untuk mengubah urutan">&#9776;</button>
-      <div class="field">
-        <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
-        <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
-      </div>
-      <div class="field">
-        <label for="lampiran-file-${rowId}">File PDF</label>
-        <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
-      </div>
-      <button type="button" class="remove-btn" title="Hapus lampiran ini" aria-label="Hapus lampiran ini">&#128465;</button>
-    `;
+            <span class="lampiran-order" aria-label="Urutan lampiran">${rowId}</span>
+            <button type="button" class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-label="Seret untuk mengubah urutan">&#9776;</button>
+            <div class="field">
+              <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
+              <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
+            </div>
+            <div class="field">
+              <label for="lampiran-file-${rowId}">File PDF</label>
+              <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
+            </div>
+            <button type="button" class="remove-btn" title="Hapus lampiran ini" aria-label="Hapus lampiran ini">&#128465;</button>
+          `;
           row.querySelector(".remove-btn").addEventListener("click", () => {
             row.remove();
             updateLampiranNumbers();
@@ -1115,21 +1176,21 @@
           const row = document.createElement("div");
           row.className = "recipient-row";
           row.innerHTML = `
-      <span class="recipient-order" aria-label="Urutan dosen">${rowId}</span>
-      <div class="field">
-        <label for="rec-nama-${rowId}">Nama Dosen</label>
-        <input type="text" id="rec-nama-${rowId}" class="rec-nama" placeholder="Isikan nama dosen" maxlength="150" required>
-      </div>
-      <div class="field">
-        <label for="rec-matkul-${rowId}">Mata Kuliah</label>
-        <input type="text" id="rec-matkul-${rowId}" class="rec-matkul" placeholder="Isikan mata kuliah" maxlength="150" required>
-      </div>
-      <div class="field">
-        <label for="rec-semester-${rowId}">Semester</label>
-        <input type="text" id="rec-semester-${rowId}" class="rec-semester" placeholder="Isikan semester" maxlength="30" required>
-      </div>
-      <button type="button" class="remove-btn" title="Hapus penerima ini" aria-label="Hapus penerima ini">&#128465;</button>
-    `;
+            <span class="recipient-order" aria-label="Urutan dosen">${rowId}</span>
+            <div class="field">
+              <label for="rec-nama-${rowId}">Nama Dosen</label>
+              <input type="text" id="rec-nama-${rowId}" class="rec-nama" placeholder="Isikan nama dosen" maxlength="150" required>
+            </div>
+            <div class="field">
+              <label for="rec-matkul-${rowId}">Mata Kuliah</label>
+              <input type="text" id="rec-matkul-${rowId}" class="rec-matkul" placeholder="Isikan mata kuliah" maxlength="150" required>
+            </div>
+            <div class="field">
+              <label for="rec-semester-${rowId}">Semester</label>
+              <input type="text" id="rec-semester-${rowId}" class="rec-semester" placeholder="Isikan semester" maxlength="30" required>
+            </div>
+            <button type="button" class="remove-btn" title="Hapus penerima ini" aria-label="Hapus penerima ini">&#128465;</button>
+          `;
           row.querySelector(".remove-btn").addEventListener("click", () => {
             row.remove();
             updateRecipientNumbers();
@@ -1183,7 +1244,9 @@
             updateStampState();
           });
         });
-        document.getElementById("recipients_csv").addEventListener("change", updateStampState);
+        document
+          .getElementById("recipients_csv")
+          .addEventListener("change", updateStampState);
         document
           .getElementById("download-template")
           .addEventListener("click", (e) => {
@@ -1217,11 +1280,18 @@
           statusEl.textContent = "";
         }
 
+        const progressWrap = document.getElementById("progress-wrap");
+        const progressFill = document.getElementById("progress-fill");
+        const progressLabel = document.getElementById("progress-label");
+
         document
           .getElementById("surat-form")
           .addEventListener("submit", async (e) => {
             e.preventDefault();
             clearStatus();
+            progressWrap.classList.remove("show");
+            progressFill.style.width = "0%";
+            progressLabel.textContent = "";
 
             const lampiranJudulEls =
               document.querySelectorAll(".lampiran-judul");
@@ -1292,7 +1362,7 @@
             }
 
             submitBtn.disabled = true;
-            setStatus("loading", "Memproses dokumen, mohon tunggu…");
+            setStatus("loading", "Mengirim data ke server…");
 
             try {
               const response = await fetch(
@@ -1315,24 +1385,82 @@
                   /* biarkan pesan default */
                 }
                 setStatus("error", detail);
+                submitBtn.disabled = false;
                 return;
               }
 
-              const blob = await response.blob();
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "hasil_surat_permohonan_mengajar.zip";
-              a.click();
-              URL.revokeObjectURL(url);
+              const { job_id, total } = await response.json();
+              progressWrap.classList.add("show");
+              setStatus("loading", `Memproses dokumen…`);
+              progressLabel.textContent = `0/${total} dokumen selesai`;
 
-              setStatus("success", "Dokumen berhasil dibuat dan diunduh.");
+              const pollInterval = setInterval(async () => {
+                try {
+                  const statusRes = await fetch(
+                    `/surat/permohonan-mengajar/jobs/${job_id}/status`,
+                  );
+                  if (!statusRes.ok) {
+                    clearInterval(pollInterval);
+                    setStatus("error", "Gagal memeriksa status proses.");
+                    submitBtn.disabled = false;
+                    return;
+                  }
+                  const jobStatus = await statusRes.json();
+                  const pct =
+                    jobStatus.total > 0
+                      ? Math.round((jobStatus.current / jobStatus.total) * 100)
+                      : 0;
+                  progressFill.style.width = pct + "%";
+                  progressLabel.textContent = `${jobStatus.current}/${jobStatus.total} dokumen selesai`;
+
+                  if (jobStatus.status === "done") {
+                    clearInterval(pollInterval);
+                    setStatus("loading", "Menyiapkan unduhan…");
+
+                    const downloadRes = await fetch(
+                      `/surat/permohonan-mengajar/jobs/${job_id}/download`,
+                    );
+                    if (!downloadRes.ok) {
+                      setStatus("error", "Gagal mengunduh hasil.");
+                      submitBtn.disabled = false;
+                      return;
+                    }
+                    const blob = await downloadRes.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "hasil_surat_permohonan_mengajar.zip";
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    setStatus(
+                      "success",
+                      "Dokumen berhasil dibuat dan diunduh.",
+                    );
+                    submitBtn.disabled = false;
+                  } else if (jobStatus.status === "error") {
+                    clearInterval(pollInterval);
+                    setStatus(
+                      "error",
+                      jobStatus.error ||
+                        "Terjadi kesalahan saat memproses dokumen.",
+                    );
+                    submitBtn.disabled = false;
+                  }
+                } catch (err) {
+                  clearInterval(pollInterval);
+                  setStatus(
+                    "error",
+                    "Tidak dapat terhubung ke server: " + err.message,
+                  );
+                  submitBtn.disabled = false;
+                }
+              }, 1200);
             } catch (err) {
               setStatus(
                 "error",
                 "Tidak dapat terhubung ke server: " + err.message,
               );
-            } finally {
               submitBtn.disabled = false;
             }
           });

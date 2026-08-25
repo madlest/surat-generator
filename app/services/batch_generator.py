@@ -48,6 +48,7 @@ def generate_batch(
     batch_info: PermohonanMengajarBatchInfo,
     recipients: list[PermohonanMengajarRecipient],
     working_dir: str,
+    progress_callback=None,
 ) -> str:
     """
     Generate PDF untuk setiap recipient (cover letter + lampiran tergabung),
@@ -106,6 +107,9 @@ def generate_batch(
                 semester=recipient.semester,
             )
             final_pdf_path = str(individual_dir / final_filename)
+            
+            if progress_callback:
+                progress_callback(index, len(recipients))
 
             merge_pdfs(
                 pdf_paths=[cover_letter_pdf, *lampiran_paths],
