@@ -9,6 +9,7 @@ from app.core.database import engine
 from app.models.letter_type import LetterType, LetterField
 from app.services.letter_type_repo import get_letter_type_with_fields
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
+from app.models.letter_type import FieldType, LetterType, LetterField
 
 router = APIRouter(prefix="/admin/letter-types", tags=["Admin - Jenis Surat"])
 
@@ -79,13 +80,17 @@ def create_letter_type(
             raise HTTPException(status_code=500, detail="Gagal membuat jenis surat.")
 
         for index, field_data in enumerate(fields_data):
+            field_type = field_data.get("field_type", "text")
+            # Tanggal di surat resmi tidak boleh kosong: paksa wajib apa pun
+            # yang dikirim klien, supaya tidak bisa di-bypass lewat curl.
+            required = True if field_type == FieldType.date else field_data.get("required", True)
             field = LetterField(
                 letter_type_id=letter_type.id,
                 field_key=field_data["field_key"],
                 label=field_data["label"],
-                field_type=field_data.get("field_type", "text"),
+                field_type=field_type,
                 level=field_data["level"],
-                required=field_data.get("required", True),
+                required=required,
                 display_order=index,
             )
             session.add(field)

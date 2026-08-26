@@ -33,7 +33,11 @@ def _format_custom_values(values: dict, fields: list[LetterField]) -> dict:
     field_types = {field.field_key: field.field_type for field in fields}
     formatted = {}
     for key, value in values.items():
-        if field_types.get(key) == FieldType.date and isinstance(value, date):
+        if value is None:
+            # Field opsional yang dikosongkan. Tanpa ini, Jinja merender None
+            # jadi teks "None" di badan surat — jelek dan senyap.
+            formatted[key] = ""
+        elif field_types.get(key) == FieldType.date and isinstance(value, date):
             formatted[key] = format_tanggal_indonesia(value)
         else:
             formatted[key] = value
@@ -125,11 +129,13 @@ def generate_batch(
                 filename_stem = f"{filename_stem} ({used_filenames[filename_stem]})"
             final_pdf_path = str(individual_dir / f"{filename_stem}.pdf")
 
-            if progress_callback:
-                progress_callback(index, len(recipients))
-
             merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
             final_pdf_paths.append(final_pdf_path)
+
+            # Dilaporkan setelah merge selesai, bukan sebelum, supaya angka
+            # progress mencerminkan dokumen yang benar-benar sudah jadi.
+            if progress_callback:
+                progress_callback(index, len(recipients))
 
         except (DocumentGenerationError, PdfMergeError) as e:
             raise DynamicBatchGenerationError(

@@ -2,6 +2,7 @@
 # SPM), berdasarkan LetterField yang tersimpan di database untuk slug terkait.
 
 import json
+import logging
 import shutil
 import uuid
 from datetime import datetime
@@ -28,12 +29,51 @@ from app.services.pdf_merger import PdfMergeError
 
 router = APIRouter(prefix="/generate", tags=["Generate Surat Dinamis"])
 
+logger = logging.getLogger(__name__)
+
+# Job yang tidak pernah diunduh (gagal, atau tab user keburu ditutup) disapu
+# setelah lewat umur ini, supaya entry-nya tidak menumpuk di memori.
+JOB_MAX_AGE_SECONDS = 60 * 60  # 1 jam
+
+MAX_LAMPIRAN_BYTES = 10 * 1024 * 1024  # 10 MB, sama dengan batas di frontend
+PDF_MAGIC_BYTES = b"%PDF-"
+
+
+def _save_lampiran(upload_file: UploadFile, dest_path: Path, position: int) -> None:
+    """
+    Simpan satu file lampiran ke disk sambil menegakkan batas ukuran dan
+    memastikan isinya benar-benar PDF. Frontend sudah mengecek hal yang sama,
+    tapi endpoint ini juga bisa dipanggil langsung (curl), jadi validasinya
+    tidak boleh cuma mengandalkan sisi klien.
+    """
+    upload_file.file.seek(0)
+    header = upload_file.file.read(len(PDF_MAGIC_BYTES))
+    if header != PDF_MAGIC_BYTES:
+        raise ValueError(f"Lampiran ke-{position} bukan file PDF yang valid.")
+
+    total = len(header)
+    with open(dest_path, "wb") as f:
+        f.write(header)
+        while chunk := upload_file.file.read(1024 * 1024):
+            total += len(chunk)
+            if total > MAX_LAMPIRAN_BYTES:
+                f.close()
+                dest_path.unlink(missing_ok=True)
+                raise ValueError(f"Lampiran ke-{position} melebihi batas ukuran 10 MB.")
+            f.write(chunk)
+
 
 def _parse_base_info(raw: dict) -> dict:
     """
     Validasi & convert field universal yang berlaku untuk semua jenis surat
     (nomor_surat, tempat_surat, tanggal_surat, perihal_surat, lampirans).
     """
+    # batch_info harus objek JSON, bukan array/angka/string. Tanpa guard ini
+    # raw.get() melempar AttributeError dan berakhir jadi 500, padahal ini
+    # murni kesalahan input.
+    if not isinstance(raw, dict):
+        raise FieldValidationError("Informasi surat", ["'batch_info' harus berupa objek JSON."])
+
     errors: list[str] = []
 
     for key, label in (
@@ -50,9 +90,11 @@ def _parse_base_info(raw: dict) -> dict:
         errors.append("'Tanggal Surat' wajib diisi.")
     else:
         try:
+            # Nilai masuk selalu ISO (dikirim native date picker); pesan error
+            # tetap memakai DD-MM-YYYY karena itu yang dilihat & diketik user.
             tanggal_surat = datetime.strptime(str(tanggal_surat_raw).strip(), "%Y-%m-%d").date()
         except ValueError:
-            errors.append("'Tanggal Surat' harus berupa tanggal dengan format YYYY-MM-DD.")
+            errors.append("'Tanggal Surat' harus berupa tanggal dengan format DD-MM-YYYY.")
 
     lampirans_raw = raw.get("lampirans", [])
     if not isinstance(lampirans_raw, list):
@@ -105,8 +147,9 @@ def _run_batch_job(
     except (DocumentGenerationError, PdfMergeError, DynamicBatchGenerationError) as e:
         job_store.mark_error(job_id, str(e))
         shutil.rmtree(working_dir, ignore_errors=True)
-    except Exception as e:
-        job_store.mark_error(job_id, f"Terjadi kesalahan tidak terduga: {e}")
+    except Exception:
+        logger.exception("Job generate %s gagal karena kesalahan tak terduga", job_id)
+        job_store.mark_error(job_id, "Terjadi kesalahan tidak terduga saat memproses dokumen.")
         shutil.rmtree(working_dir, ignore_errors=True)
 
 
@@ -140,9 +183,11 @@ def start_generate_job(
             raise HTTPException(status_code=400, detail=f"batch_info bukan JSON valid: {e}")
 
         base_info = _parse_base_info(batch_info_raw)
-        custom_batch_values = parse_field_values(
-            batch_info_raw.get("custom_fields", {}), batch_fields, "Informasi surat"
-        )
+
+        custom_fields_raw = batch_info_raw.get("custom_fields", {})
+        if not isinstance(custom_fields_raw, dict):
+            raise FieldValidationError("Informasi surat", ["'custom_fields' harus berupa objek JSON."])
+        custom_batch_values = parse_field_values(custom_fields_raw, batch_fields, "Informasi surat")
 
         if len(lampiran_files) != len(base_info["lampirans"]):
             raise HTTPException(
@@ -157,8 +202,7 @@ def start_generate_job(
         lampiran_dir.mkdir(parents=True, exist_ok=True)
         for index, upload_file in enumerate(lampiran_files):
             dest_path = lampiran_dir / f"lampiran_{index}.pdf"
-            with open(dest_path, "wb") as f:
-                shutil.copyfileobj(upload_file.file, f)
+            _save_lampiran(upload_file, dest_path, position=index + 1)
             base_info["lampirans"][index]["file_path"] = str(dest_path)
 
         if recipients_mode == "list":
@@ -188,9 +232,16 @@ def start_generate_job(
     except HTTPException:
         shutil.rmtree(working_dir, ignore_errors=True)
         raise
-    except Exception as e:
+    except Exception:
         shutil.rmtree(working_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan tidak terduga: {e}")
+        # Detail teknis (path, stack) hanya ke log server, bukan ke user.
+        logger.exception("Gagal menyiapkan job generate untuk slug '%s'", slug)
+        raise HTTPException(status_code=500, detail="Terjadi kesalahan tidak terduga di server.")
+
+    # Sapu job lama tiap kali ada job baru — cukup untuk skala pemakaian ini,
+    # tanpa perlu scheduler terpisah.
+    for stale_zip in job_store.sweep_stale(JOB_MAX_AGE_SECONDS):
+        shutil.rmtree(Path(stale_zip).parent, ignore_errors=True)
 
     job_store.create_job(job_id=job_id, total=len(recipients))
     background_tasks.add_task(

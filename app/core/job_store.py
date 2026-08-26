@@ -1,4 +1,5 @@
 import threading
+import time
 import uuid
 from typing import Any
 
@@ -22,6 +23,7 @@ class JobStore:
                 "total": total,
                 "zip_path": None,
                 "error": None,
+                "created_at": time.time(),
             }
 
     def update_progress(self, job_id: str, current: int) -> None:
@@ -49,6 +51,24 @@ class JobStore:
     def delete(self, job_id: str) -> None:
         with self._lock:
             self._jobs.pop(job_id, None)
+
+    def sweep_stale(self, max_age_seconds: float) -> list[str]:
+        """
+        Buang job yang sudah lewat umur maksimal dan kembalikan zip_path-nya
+        (kalau ada) supaya pemanggil bisa ikut membersihkan working dir-nya.
+
+        Job yang gagal tidak pernah diunduh, jadi tanpa ini entry-nya menumpuk
+        di memori selama proses hidup. Job sukses yang tidak jadi diunduh user
+        (tab ditutup) juga ikut tersapu di sini.
+        """
+        cutoff = time.time() - max_age_seconds
+        stale_zip_paths: list[str] = []
+        with self._lock:
+            for job_id in [jid for jid, job in self._jobs.items() if job["created_at"] < cutoff]:
+                job = self._jobs.pop(job_id)
+                if job.get("zip_path"):
+                    stale_zip_paths.append(job["zip_path"])
+        return stale_zip_paths
 
 
 job_store = JobStore()

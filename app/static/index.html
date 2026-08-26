@@ -1986,6 +1986,16 @@
               requiredCheckbox,
               document.createTextNode("Wajib"),
             );
+            // Tanggal di surat resmi selalu wajib — kunci checkbox-nya kalau
+            // tipe field diubah jadi "date", dan lepas lagi kalau bukan.
+            const syncRequiredLock = () => {
+                const isDate = typeSelect.value === "date";
+                if (isDate) requiredCheckbox.checked = true;
+                requiredCheckbox.disabled = isDate;
+                requiredCol.title = isDate ? "Field tanggal selalu wajib diisi." : "";
+            };
+            typeSelect.addEventListener("change", syncRequiredLock);
+            syncRequiredLock();
 
             row.append(keyCol, typeCol, levelCol, requiredCol);
             list.appendChild(row);
