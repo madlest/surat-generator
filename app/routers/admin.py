@@ -1,19 +1,26 @@
 import json
+import re
 import shutil
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from sqlmodel import Session, select
 
 from app.core.database import engine
-from app.models.letter_type import LetterType, LetterField
+from app.models.letter_type import FieldLevel, FieldType, LetterType, LetterField
 from app.services.letter_type_repo import get_letter_type_with_fields
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
-from app.models.letter_type import FieldType, LetterType, LetterField
 
 router = APIRouter(prefix="/admin/letter-types", tags=["Admin - Jenis Surat"])
 
 UPLOAD_DIR = Path("app/templates/uploaded")
+
+# Slug dipakai langsung sebagai nama file template, jadi bentuknya dibatasi
+# ketat: huruf kecil, angka, dan tanda hubung. Tanpa ini, slug seperti
+# "../../etc/passwd" bisa menulis file di luar folder yang dimaksud.
+SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+MAX_SLUG_LENGTH = 60
 
 
 @router.post("/inspect")
@@ -24,12 +31,15 @@ def inspect_template(template_file: UploadFile = File(...)):
     deteksi ini dulu sebelum submit konfigurasi lengkap di langkah 2.
     """
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    temp_path = UPLOAD_DIR / f"_preview_{template_file.filename}"
-
-    with open(temp_path, "wb") as f:
-        shutil.copyfileobj(template_file.file, f)
+    # Nama file dibuat acak, bukan diambil dari template_file.filename, karena
+    # nama kiriman klien bisa mengandung "../" atau kebetulan sama dengan
+    # template permanen di folder ini - yang berarti file preview sementara
+    # menimpanya, lalu ikut terhapus di blok finally.
+    temp_path = UPLOAD_DIR / f"_preview_{uuid.uuid4().hex}.docx"
 
     try:
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(template_file.file, f)
         variables = detect_custom_variables(str(temp_path))
     except TemplateInspectionError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -51,10 +61,72 @@ def create_letter_type(
     template docx final (disimpan permanen kali ini) dan konfigurasi
     tiap field yang sudah diisi admin berdasarkan hasil /inspect.
     """
+    name = name.strip()
+    slug = slug.strip().lower()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Nama jenis surat wajib diisi.")
+    if len(slug) > MAX_SLUG_LENGTH or not SLUG_PATTERN.match(slug):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Slug hanya boleh berisi huruf kecil, angka, dan tanda hubung "
+                f"(maksimal {MAX_SLUG_LENGTH} karakter). Contoh: permohonan-mengajar."
+            ),
+        )
+
     try:
         fields_data = json.loads(fields_config)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail=f"fields_config bukan JSON valid: {e}")
+
+    if not isinstance(fields_data, list):
+        raise HTTPException(status_code=400, detail="fields_config harus berupa list.")
+
+    # Validasi seluruh definisi field lebih dulu, sebelum menyentuh disk atau
+    # database - supaya konfigurasi yang cacat tidak meninggalkan LetterType
+    # setengah jadi (tercipta tapi tanpa field).
+    valid_types = {t.value for t in FieldType}
+    valid_levels = {level.value for level in FieldLevel}
+    seen_keys: set[str] = set()
+    normalized_fields: list[dict] = []
+
+    for position, field_data in enumerate(fields_data, start=1):
+        if not isinstance(field_data, dict):
+            raise HTTPException(status_code=400, detail=f"Definisi field ke-{position} harus berupa objek.")
+
+        field_key = str(field_data.get("field_key", "")).strip()
+        if not field_key:
+            raise HTTPException(status_code=400, detail=f"Definisi field ke-{position} tidak punya field_key.")
+        if field_key in seen_keys:
+            raise HTTPException(status_code=400, detail=f"field_key '{field_key}' muncul lebih dari sekali.")
+        seen_keys.add(field_key)
+
+        field_type = str(field_data.get("field_type", "text"))
+        if field_type not in valid_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipe '{field_type}' pada field '{field_key}' tidak dikenal.",
+            )
+
+        level = str(field_data.get("level", ""))
+        if level not in valid_levels:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Level '{level}' pada field '{field_key}' tidak dikenal.",
+            )
+
+        normalized_fields.append(
+            {
+                "field_key": field_key,
+                "label": str(field_data.get("label", "")).strip() or field_key,
+                "field_type": field_type,
+                "level": level,
+                # Tanggal di surat resmi tidak boleh kosong: paksa wajib apa pun
+                # yang dikirim klien, supaya tidak bisa di-bypass lewat curl.
+                "required": True if field_type == FieldType.date else bool(field_data.get("required", True)),
+            }
+        )
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     final_path = UPLOAD_DIR / f"{slug}.docx"
@@ -62,41 +134,40 @@ def create_letter_type(
     if final_path.exists():
         raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah digunakan.")
 
-    with open(final_path, "wb") as f:
-        shutil.copyfileobj(template_file.file, f)
-
     with Session(engine) as session:
         existing = session.exec(select(LetterType).where(LetterType.slug == slug)).first()
         if existing:
-            final_path.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah terdaftar di database.")
 
-        letter_type = LetterType(name=name, slug=slug, template_path=final_path.as_posix())
-        session.add(letter_type)
-        session.commit()
-        session.refresh(letter_type)
+        # Semua validasi lolos - baru sekarang aman menulis file ke disk.
+        with open(final_path, "wb") as f:
+            shutil.copyfileobj(template_file.file, f)
 
-        if letter_type.id is None:
-            raise HTTPException(status_code=500, detail="Gagal membuat jenis surat.")
+        try:
+            # as_posix() (bukan str()) supaya path selalu tersimpan dengan forward
+            # slash. str() mengikuti OS yang sedang jalan, sehingga data yang dibuat
+            # di Windows tidak terbaca saat aplikasi dijalankan di Linux.
+            letter_type = LetterType(name=name, slug=slug, template_path=final_path.as_posix())
+            session.add(letter_type)
+            session.commit()
+            session.refresh(letter_type)
 
-        for index, field_data in enumerate(fields_data):
-            field_type = field_data.get("field_type", "text")
-            # Tanggal di surat resmi tidak boleh kosong: paksa wajib apa pun
-            # yang dikirim klien, supaya tidak bisa di-bypass lewat curl.
-            required = True if field_type == FieldType.date else field_data.get("required", True)
-            field = LetterField(
-                letter_type_id=letter_type.id,
-                field_key=field_data["field_key"],
-                label=field_data["label"],
-                field_type=field_type,
-                level=field_data["level"],
-                required=required,
-                display_order=index,
-            )
-            session.add(field)
+            if letter_type.id is None:
+                raise HTTPException(status_code=500, detail="Gagal membuat jenis surat.")
 
-        session.commit()
-        result = {"id": letter_type.id, "slug": letter_type.slug, "name": letter_type.name}
+            for index, field_data in enumerate(normalized_fields):
+                session.add(LetterField(letter_type_id=letter_type.id, display_order=index, **field_data))
+
+            session.commit()
+            # Disalin selagi session masih hidup: setelah commit, SQLAlchemy
+            # meng-expire atribut objek, sehingga akses di luar blok `with`
+            # akan melempar DetachedInstanceError.
+            result = {"id": letter_type.id, "slug": letter_type.slug, "name": letter_type.name}
+        except Exception:
+            # Jangan tinggalkan file template yatim kalau penyimpanan gagal.
+            session.rollback()
+            final_path.unlink(missing_ok=True)
+            raise
 
     return result
 
