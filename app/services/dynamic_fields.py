@@ -1,0 +1,106 @@
+# Validasi & parsing nilai field custom (LetterField) untuk jenis surat dinamis.
+
+import csv
+import io
+from datetime import datetime
+
+from app.models.letter_type import FieldType, LetterField
+
+
+class FieldValidationError(Exception):
+    """Raised ketika satu atau lebih nilai field custom gagal divalidasi."""
+
+    def __init__(self, context_label: str, errors: list[str]):
+        self.context_label = context_label
+        self.errors = errors
+        super().__init__(f"{context_label}: {'; '.join(errors)}")
+
+
+def parse_field_value(raw_value, field: LetterField):
+    """
+    Ubah satu nilai mentah (string dari form/CSV) jadi tipe Python sesuai
+    field.field_type, sambil menegakkan field.required.
+    """
+    if raw_value is None or (isinstance(raw_value, str) and raw_value.strip() == ""):
+        if field.required:
+            raise ValueError(f"'{field.label}' wajib diisi.")
+        return None
+
+    if field.field_type == FieldType.date:
+        try:
+            return datetime.strptime(str(raw_value).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"'{field.label}' harus berupa tanggal dengan format YYYY-MM-DD.")
+
+    if field.field_type == FieldType.number:
+        value_str = str(raw_value).strip()
+        try:
+            return int(value_str)
+        except ValueError:
+            try:
+                return float(value_str)
+            except ValueError:
+                raise ValueError(f"'{field.label}' harus berupa angka.")
+
+    return str(raw_value).strip()
+
+
+def parse_field_values(raw_values: dict, fields: list[LetterField], context_label: str) -> dict:
+    """
+    Validasi & convert satu set nilai (dict field_key -> raw value) terhadap
+    daftar LetterField yang relevan. Fail-fast per context_label (kumpulkan
+    semua error dulu, baru raise) supaya pesan error informatif.
+    """
+    result: dict = {}
+    errors: list[str] = []
+    for field in fields:
+        try:
+            result[field.field_key] = parse_field_value(raw_values.get(field.field_key), field)
+        except ValueError as e:
+            errors.append(str(e))
+
+    if errors:
+        raise FieldValidationError(context_label, errors)
+
+    return result
+
+
+def parse_recipients_from_list(recipients_data: list[dict], recipient_fields: list[LetterField]) -> list[dict]:
+    recipients = []
+    for index, item in enumerate(recipients_data, start=1):
+        recipients.append(parse_field_values(item, recipient_fields, f"Penerima ke-{index}"))
+    return recipients
+
+
+def parse_recipients_from_csv(file_content: bytes, recipient_fields: list[LetterField]) -> list[dict]:
+    """
+    Header CSV yang diharapkan: persis field_key tiap LetterField level
+    recipient (case-sensitive). Untuk field bertipe date, isi kolom dengan
+    format YYYY-MM-DD.
+    """
+    # utf-8-sig supaya toleran terhadap BOM yang sering disisipkan Excel
+    text_stream = io.StringIO(file_content.decode("utf-8-sig"))
+    reader = csv.DictReader(text_stream)
+
+    if reader.fieldnames is None:
+        raise ValueError("File CSV kosong atau tidak punya header.")
+
+    kolom_wajib = {field.field_key for field in recipient_fields}
+    kolom_ada = set(reader.fieldnames)
+    kolom_hilang = kolom_wajib - kolom_ada
+    if kolom_hilang:
+        raise ValueError(
+            f"Kolom CSV berikut tidak ditemukan: {', '.join(kolom_hilang)}. "
+            f"Kolom yang terdeteksi: {', '.join(reader.fieldnames)}"
+        )
+
+    recipients = []
+    # enumerate mulai dari 2 karena baris 1 adalah header
+    for row_number, row in enumerate(reader, start=2):
+        row_bersih = {k: (v.strip() if v else v) for k, v in row.items()}
+        recipients.append(parse_field_values(row_bersih, recipient_fields, f"Baris CSV ke-{row_number}"))
+
+    if not recipients:
+        raise ValueError("CSV tidak berisi data recipient sama sekali (cuma header).")
+
+    return recipients

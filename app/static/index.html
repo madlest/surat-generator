@@ -99,6 +99,8 @@
       select,
       .lampiran-row,
       .recipient-row,
+      .type-card,
+      .admin-field-row,
       .drag-handle,
       .remove-btn,
       .add-btn,
@@ -140,6 +142,13 @@
         max-width: 720px;
         margin: 0 auto;
         padding: 48px 24px 96px;
+      }
+
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
       }
 
       header.masthead {
@@ -186,6 +195,24 @@
         border: 1px solid var(--line-strong);
         padding: 4px 10px;
         border-radius: 999px;
+      }
+
+      .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        border: none;
+        color: var(--teal-dark);
+        font-family: "Inter", sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        padding: 0;
+        margin-bottom: 14px;
+      }
+      .back-btn:hover {
+        text-decoration: underline;
       }
 
       .step {
@@ -284,6 +311,7 @@
       }
 
       input[type="text"],
+      input[type="number"],
       input[type="date"],
       input[type="file"],
       select {
@@ -368,7 +396,8 @@
       .lampiran-row {
         grid-template-columns: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
       }
-      .lampiran-order {
+      .lampiran-order,
+      .recipient-order {
         align-self: end;
         transform: translateY(-3px);
         min-width: 34px;
@@ -396,9 +425,6 @@
         line-height: 1;
         cursor: grab;
       }
-      .lampiran-row .drag-handle {
-        align-self: end;
-      }
       .drag-handle:active {
         cursor: grabbing;
       }
@@ -409,33 +435,9 @@
       .lampiran-row.dragging {
         opacity: 0.55;
       }
-      .lampiran-row .remove-btn {
-        align-self: end;
-      }
-      .recipient-row {
-        grid-template-columns:
-          auto minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr)
-          auto;
-      }
-      .recipient-order {
-        align-self: end;
-        transform: translateY(-3px);
-        min-width: 34px;
-        height: 34px;
-        padding: 3px 7px;
-        border: 1px solid var(--teal);
-        border-radius: 50%;
-        color: var(--teal-dark);
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 26px;
-        text-align: center;
-      }
-      .recipient-row .remove-btn {
-        align-self: end;
-      }
 
       .remove-btn {
+        align-self: end;
         background: var(--error);
         border: 1px solid var(--error);
         color: #fff;
@@ -670,6 +672,116 @@
         border: 1px solid #bfdde4;
       }
 
+      /* Dashboard */
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .type-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        text-align: left;
+        background: var(--paper-raised);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        cursor: pointer;
+        font-family: inherit;
+        color: inherit;
+        animation: fade-up 0.4s ease both;
+      }
+      .type-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(27, 42, 46, 0.07);
+        border-color: var(--teal);
+      }
+      .type-card-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--teal-tint);
+        color: var(--teal-dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Source Serif 4", serif;
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .type-card-name {
+        font-family: "Source Serif 4", serif;
+        font-weight: 600;
+        font-size: 16px;
+        line-height: 1.3;
+      }
+      .type-card-slug {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--ink-soft);
+      }
+      .type-card.add-new {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        border-style: dashed;
+        border-color: var(--line-strong);
+        color: var(--teal);
+        font-weight: 600;
+        gap: 4px;
+      }
+      .type-card.add-new:hover {
+        background: var(--teal-tint);
+        border-color: var(--teal);
+      }
+      .type-card.add-new .plus {
+        font-size: 26px;
+        line-height: 1;
+      }
+      .dashboard-loading,
+      .dashboard-error,
+      .dashboard-empty {
+        color: var(--ink-soft);
+        font-size: 13.5px;
+        grid-column: 1 / -1;
+      }
+      .dashboard-error {
+        color: var(--error);
+      }
+
+      /* Admin wizard */
+      .admin-field-row {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 0.9fr auto;
+        gap: 10px;
+        align-items: end;
+        padding: 12px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        margin-bottom: 10px;
+      }
+      .admin-field-row .field-key-label {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--ink-soft);
+      }
+      .admin-required-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--ink-soft);
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: normal;
+      }
+      .admin-required-toggle input {
+        width: auto;
+      }
+
       @media (max-width: 600px) {
         .field-grid {
           grid-template-columns: 1fr;
@@ -698,7 +810,7 @@
           align-self: start;
         }
         .recipient-row {
-          grid-template-columns: auto 1fr auto;
+          grid-template-columns: auto 1fr auto !important;
         }
         .recipient-row .field {
           grid-column: 1 / -1;
@@ -713,6 +825,9 @@
           grid-column: 3;
           grid-row: 1;
           margin-bottom: 0;
+        }
+        .admin-field-row {
+          grid-template-columns: 1fr;
         }
         .step {
           padding: 20px;
@@ -757,227 +872,85 @@
   </head>
   <body>
     <div class="page">
-      <header class="masthead">
-        <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
-        <h1>Surat Generator</h1>
-        <p>
-          Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge
-          manual.
-        </p>
-        <span class="letter-type-tag">Jenis surat: Permohonan Mengajar</span>
-      </header>
+      <!-- ================= DASHBOARD ================= -->
+      <div class="view active" id="view-dashboard">
+        <header class="masthead">
+          <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
+          <h1>Surat Generator</h1>
+          <p>Pilih jenis surat yang ingin dibuat, atau tambahkan jenis surat baru.</p>
+        </header>
+        <div class="dashboard-grid" id="dashboard-grid"></div>
+      </div>
 
-      <form id="surat-form">
-        <section class="step">
+      <!-- ================= DYNAMIC FORM ================= -->
+      <div class="view" id="view-form">
+        <button type="button" class="back-btn" id="back-to-dashboard-from-form">&larr; Kembali ke daftar jenis surat</button>
+        <header class="masthead">
+          <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
+          <h1>Surat Generator</h1>
+          <p>Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge manual.</p>
+          <span class="letter-type-tag" id="form-type-tag"></span>
+        </header>
+        <div id="form-area"></div>
+      </div>
+
+      <!-- ================= ADMIN: TAMBAH JENIS SURAT ================= -->
+      <div class="view" id="view-admin-add">
+        <button type="button" class="back-btn" id="back-to-dashboard-from-admin">&larr; Kembali ke daftar jenis surat</button>
+        <header class="masthead">
+          <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
+          <h1>Tambah Jenis Surat Baru</h1>
+          <p>Upload template docx, lalu atur field-nya. Tidak perlu kode.</p>
+        </header>
+
+        <section class="step" id="admin-step-1">
           <div class="step-head">
             <span class="step-num">1</span>
-            <h2>Informasi Surat</h2>
+            <h2>Upload Template</h2>
           </div>
-          <div class="field-grid">
-            <div class="field">
-              <label for="nomor_surat">Nomor Surat</label>
-              <input
-                type="text"
-                id="nomor_surat"
-                required
-                placeholder="Isikan nomor surat"
-              />
-            </div>
-            <div class="field">
-              <label for="tempat_surat">Tempat Surat</label>
-              <input
-                type="text"
-                id="tempat_surat"
-                required
-                placeholder="Isikan tempat surat"
-              />
-            </div>
-            <div class="field">
-              <label for="tanggal_surat">Tanggal Surat</label>
-              <div class="date-input">
-                <input
-                  type="text"
-                  class="date-display"
-                  id="tanggal_surat_display"
-                  placeholder="Contoh: 22/08/2026"
-                  inputmode="numeric"
-                  autocomplete="off"
-                  aria-describedby="tanggal_surat_hint"
-                />
-                <input
-                  type="date"
-                  class="date-native"
-                  id="tanggal_surat"
-                  lang="id-ID"
-                  required
-                  aria-label="Tanggal Surat"
-                />
-                <button
-                  type="button"
-                  class="date-picker-btn"
-                  data-date-target="tanggal_surat"
-                  title="Pilih tanggal dari kalender"
-                  aria-label="Pilih tanggal dari kalender"
-                >
-                  &#128197;
-                </button>
-              </div>
-              <small class="field-hint" id="tanggal_surat_hint"
-                >Format: DD/MM/YYYY</small
-              >
-            </div>
-            <div class="field">
-              <label for="perihal_surat">Perihal</label>
-              <input
-                type="text"
-                id="perihal_surat"
-                required
-                placeholder="Isikan perihal surat"
-              />
-            </div>
+          <div class="field">
+            <label for="admin-template-file">File Template (.docx)</label>
+            <input type="file" id="admin-template-file" accept=".docx" />
+            <small class="field-hint">
+              Placeholder variabel di template ditulis dengan sintaks Jinja, misal
+              <code>{{nama_dosen}}</code>.
+            </small>
           </div>
+          <button type="button" class="add-btn" id="admin-inspect-btn" style="margin-top: 16px">
+            Deteksi Variabel &rarr;
+          </button>
+          <div class="status" id="admin-inspect-status"></div>
         </section>
 
-        <section class="step">
+        <section class="step" id="admin-step-2" style="display: none">
           <div class="step-head">
             <span class="step-num">2</span>
-            <h2>Detail Permohonan Mengajar</h2>
-            <span class="hint">Khusus jenis surat ini</span>
-          </div>
-          <div class="field full">
-            <div class="field">
-              <label for="program_studi">Program Studi</label>
-              <input
-                type="text"
-                id="program_studi"
-                required
-                placeholder="Isikan program studi"
-              />
-            </div>
+            <h2>Konfigurasi Jenis Surat</h2>
           </div>
           <div class="field-grid">
             <div class="field">
-              <label for="tahun_akademik">Tahun Akademik</label>
-              <input
-                type="text"
-                id="tahun_akademik"
-                required
-                placeholder="Isikan tahun akademik, contoh: 2026/2027"
-                pattern="[0-9]{4}/[0-9]{4}"
-                maxlength="9"
-                title="Gunakan format tahun akademik, misalnya 2026/2027"
-              />
+              <label for="admin-name">Nama Jenis Surat</label>
+              <input type="text" id="admin-name" placeholder="Contoh: Surat Permohonan Mengajar" />
             </div>
             <div class="field">
-              <label for="tanggal_mulai_perkuliahan"
-                >Tanggal Mulai Perkuliahan</label
-              >
-              <div class="date-input">
-                <input
-                  type="text"
-                  class="date-display"
-                  id="tanggal_mulai_perkuliahan_display"
-                  placeholder="Contoh: 22/08/2026"
-                  inputmode="numeric"
-                  autocomplete="off"
-                  aria-describedby="tanggal_mulai_perkuliahan_hint"
-                />
-                <input
-                  type="date"
-                  class="date-native"
-                  id="tanggal_mulai_perkuliahan"
-                  lang="id-ID"
-                  required
-                  aria-label="Tanggal Mulai Perkuliahan"
-                />
-                <button
-                  type="button"
-                  class="date-picker-btn"
-                  data-date-target="tanggal_mulai_perkuliahan"
-                  title="Pilih tanggal dari kalender"
-                  aria-label="Pilih tanggal dari kalender"
-                >
-                  &#128197;
-                </button>
-              </div>
-              <small class="field-hint" id="tanggal_mulai_perkuliahan_hint"
-                >Format: DD/MM/YYYY</small
-              >
+              <label for="admin-slug">Slug (identifier unik)</label>
+              <input type="text" id="admin-slug" placeholder="contoh: permohonan-mengajar" />
             </div>
           </div>
-        </section>
 
-        <section class="step">
-          <div class="step-head">
-            <span class="step-num">3</span>
-            <h2>Lampiran</h2>
-            <span class="hint">Berlaku untuk semua penerima</span>
+          <div id="admin-no-vars-note" style="display: none; margin: 16px 0">
+            <small class="field-hint">Tidak ada variabel custom terdeteksi di template ini.</small>
           </div>
-          <div class="row-list" id="lampiran-list"></div>
-          <button type="button" class="add-btn" id="add-lampiran">
-            + Tambahkan lampiran
+
+          <div id="admin-fields-list" style="margin-top: 20px"></div>
+
+          <button type="button" class="add-btn" id="admin-submit-btn" style="margin-top: 6px">
+            Simpan Jenis Surat
           </button>
+          <div class="status" id="admin-submit-status"></div>
         </section>
+      </div>
 
-        <section class="step">
-          <div class="step-head">
-            <span class="step-num">4</span>
-            <h2>Penerima</h2>
-          </div>
-
-          <div class="mode-toggle">
-            <button type="button" class="mode-btn active" data-mode="list">
-              Isi Daftar Langsung
-            </button>
-            <button type="button" class="mode-btn" data-mode="csv">
-              Upload CSV
-            </button>
-          </div>
-
-          <div id="mode-list">
-            <div class="row-list" id="recipient-list"></div>
-            <button type="button" class="add-btn" id="add-recipient">
-              + Tambahkan dosen
-            </button>
-          </div>
-
-          <div id="mode-csv" style="display: none">
-            <div class="field">
-              <label for="recipients_csv">File CSV</label>
-              <input type="file" id="recipients_csv" accept=".csv" />
-            </div>
-            <p class="csv-hint">
-              Kolom wajib: <code>nama_dosen, mata_kuliah, semester</code>.
-              <a href="#" id="download-template">Unduh contoh template CSV</a>
-            </p>
-          </div>
-        </section>
-
-        <section class="step">
-          <div class="step-head">
-            <span class="step-num">5</span>
-            <h2>Buat Dokumen</h2>
-          </div>
-          <div class="submit-area">
-            <div class="stamp" id="stamp">SIAP<br />DIKIRIM</div>
-            <button type="submit" class="submit" id="submit-btn">
-              Generate &amp; Unduh ZIP
-            </button>
-          </div>
-          <div
-            class="status"
-            id="status"
-            role="status"
-            aria-live="polite"
-          ></div>
-          <div class="progress-wrap" id="progress-wrap">
-            <div class="progress-track">
-              <div class="progress-fill" id="progress-fill"></div>
-            </div>
-            <div class="progress-label" id="progress-label"></div>
-          </div>
-        </section>
-      </form>
       <footer class="page-footer">
         Universitas Muhammadiyah Banjarmasin - Fakultas Farmasi &copy;
         <span id="footer-year"></span>
@@ -991,49 +964,36 @@
       aria-pressed="false"
       title="Gunakan mode gelap"
     >
-      <span id="theme-icon" aria-hidden="true">☾</span>
+      <span id="theme-icon" aria-hidden="true">&#9789;</span>
     </button>
 
     <script>
       (function () {
-        const lampiranList = document.getElementById("lampiran-list");
-        const recipientList = document.getElementById("recipient-list");
-        const statusEl = document.getElementById("status");
-        const submitBtn = document.getElementById("submit-btn");
-        const stampEl = document.getElementById("stamp");
+        "use strict";
+
         const themeToggle = document.getElementById("theme-toggle");
         const themeIcon = document.getElementById("theme-icon");
-        document.getElementById("footer-year").textContent =
-          new Date().getFullYear();
-        let lampiranRowCount = 0;
-        let recipientRowCount = 0;
-        let draggedLampiranRow = null;
+        document.getElementById("footer-year").textContent = new Date().getFullYear();
 
         function applyTheme(isDark) {
           document.body.classList.toggle("dark", isDark);
           themeIcon.textContent = isDark ? "☀" : "☾";
           themeToggle.setAttribute("aria-pressed", String(isDark));
-          themeToggle.setAttribute(
-            "aria-label",
-            isDark ? "Gunakan mode terang" : "Gunakan mode gelap",
-          );
-          themeToggle.title = isDark
-            ? "Gunakan mode terang"
-            : "Gunakan mode gelap";
-          localStorage.setItem(
-            "surat-generator-theme",
-            isDark ? "dark" : "light",
-          );
+          themeToggle.setAttribute("aria-label", isDark ? "Gunakan mode terang" : "Gunakan mode gelap");
+          themeToggle.title = isDark ? "Gunakan mode terang" : "Gunakan mode gelap";
+          localStorage.setItem("surat-generator-theme", isDark ? "dark" : "light");
         }
-
         const savedTheme = localStorage.getItem("surat-generator-theme");
-        const prefersDark = window.matchMedia?.(
-          "(prefers-color-scheme: dark)",
-        ).matches;
+        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
         applyTheme(savedTheme ? savedTheme === "dark" : prefersDark);
-        themeToggle.addEventListener("click", () => {
-          applyTheme(!document.body.classList.contains("dark"));
-        });
+        themeToggle.addEventListener("click", () => applyTheme(!document.body.classList.contains("dark")));
+
+        // ---------- shared helpers ----------
+
+        function setText(el, text) {
+          el.textContent = text;
+          return el;
+        }
 
         function formatDateIndonesia(value) {
           if (!value) return "";
@@ -1044,7 +1004,6 @@
         function parseDateIndonesia(value) {
           const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
           if (!match) return "";
-
           const [, day, month, year] = match;
           const date = new Date(Number(year), Number(month) - 1, Number(day));
           if (
@@ -1057,15 +1016,15 @@
           return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
         }
 
-        document.querySelectorAll(".date-native").forEach((dateInput) => {
-          const displayInput = document.getElementById(
-            `${dateInput.id}_display`,
-          );
+        function setupDateField(nativeId) {
+          const dateInput = document.getElementById(nativeId);
+          const displayInput = document.getElementById(`${nativeId}_display`);
+          if (!dateInput || !displayInput) return;
+
           const syncDisplay = () => {
             displayInput.value = formatDateIndonesia(dateInput.value);
             dateInput.setCustomValidity("");
           };
-
           dateInput.addEventListener("change", syncDisplay);
           displayInput.addEventListener("input", () => {
             const isoDate = parseDateIndonesia(displayInput.value);
@@ -1075,185 +1034,467 @@
                 ? "Gunakan format DD/MM/YYYY dan masukkan tanggal yang valid."
                 : "",
             );
-            updateStampState();
+            dateInput.dispatchEvent(new Event("input", { bubbles: true }));
           });
 
-          const pickerButton = document.querySelector(
-            `[data-date-target="${dateInput.id}"]`,
-          );
-          pickerButton.addEventListener("click", () => {
-            if (typeof dateInput.showPicker === "function") {
-              dateInput.showPicker();
-            } else {
-              dateInput.focus();
-              dateInput.click();
-            }
+          const pickerButton = document.querySelector(`[data-date-target="${nativeId}"]`);
+          if (pickerButton) {
+            pickerButton.addEventListener("click", () => {
+              if (typeof dateInput.showPicker === "function") {
+                dateInput.showPicker();
+              } else {
+                dateInput.focus();
+                dateInput.click();
+              }
+            });
+          }
+        }
+
+        function dateFieldMarkup(nativeId, labelText, required) {
+          return `
+            <div class="field">
+              <span class="field-label-text" data-label-for="${nativeId}"></span>
+              <div class="date-input">
+                <input type="text" class="date-display" id="${nativeId}_display" placeholder="Contoh: 22/08/2026"
+                  inputmode="numeric" autocomplete="off" aria-describedby="${nativeId}_hint">
+                <input type="date" class="date-native" id="${nativeId}" lang="id-ID" ${required ? "required" : ""}
+                  aria-label="${labelText}">
+                <button type="button" class="date-picker-btn" data-date-target="${nativeId}"
+                  title="Pilih tanggal dari kalender" aria-label="Pilih tanggal dari kalender">&#128197;</button>
+              </div>
+              <small class="field-hint" id="${nativeId}_hint">Format: DD/MM/YYYY</small>
+            </div>
+          `;
+        }
+
+        function renumberSteps(container) {
+          container.querySelectorAll(".step").forEach((step, index) => {
+            const num = step.querySelector(".step-num");
+            if (num) num.textContent = String(index + 1);
           });
+        }
+
+        // ---------- view switching ----------
+
+        function showView(viewId) {
+          document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+          document.getElementById(viewId).classList.add("active");
+          window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+        }
+
+        // ---------- dashboard ----------
+
+        const dashboardGrid = document.getElementById("dashboard-grid");
+
+        async function loadDashboard() {
+          dashboardGrid.innerHTML = '<p class="dashboard-loading">Memuat jenis surat&hellip;</p>';
+          try {
+            const res = await fetch("/admin/letter-types");
+            if (!res.ok) throw new Error("Gagal memuat daftar jenis surat.");
+            const types = await res.json();
+            renderDashboard(types);
+          } catch (err) {
+            dashboardGrid.innerHTML = "";
+            dashboardGrid.appendChild(setText(document.createElement("p"), err.message));
+            dashboardGrid.lastChild.className = "dashboard-error";
+          }
+        }
+
+        function renderDashboard(types) {
+          dashboardGrid.innerHTML = "";
+
+          if (types.length === 0) {
+            const empty = setText(document.createElement("p"), "Belum ada jenis surat. Tambahkan yang pertama.");
+            empty.className = "dashboard-empty";
+            dashboardGrid.appendChild(empty);
+          }
+
+          types.forEach((t) => {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "type-card";
+
+            const mark = document.createElement("span");
+            mark.className = "type-card-mark";
+            mark.textContent = (t.name.trim().charAt(0) || "?").toUpperCase();
+
+            const name = document.createElement("span");
+            name.className = "type-card-name";
+            name.textContent = t.name;
+
+            const slug = document.createElement("span");
+            slug.className = "type-card-slug";
+            slug.textContent = t.slug;
+
+            card.append(mark, name, slug);
+            card.addEventListener("click", () => openForm(t.slug));
+            dashboardGrid.appendChild(card);
+          });
+
+          const addCard = document.createElement("button");
+          addCard.type = "button";
+          addCard.className = "type-card add-new";
+          addCard.innerHTML = '<span class="plus">+</span>';
+          addCard.appendChild(setText(document.createElement("span"), "Tambah Jenis Surat Baru"));
+          addCard.addEventListener("click", openAdminWizard);
+          dashboardGrid.appendChild(addCard);
+        }
+
+        document.getElementById("back-to-dashboard-from-form").addEventListener("click", () => {
+          showView("view-dashboard");
+          loadDashboard();
+        });
+        document.getElementById("back-to-dashboard-from-admin").addEventListener("click", () => {
+          showView("view-dashboard");
+          loadDashboard();
         });
 
-        lampiranList.addEventListener("dragover", (event) => {
-          if (!draggedLampiranRow) return;
-          event.preventDefault();
+        // ---------- dynamic form ----------
 
-          const targetRow = event.target.closest(".lampiran-row");
-          if (!targetRow || targetRow === draggedLampiranRow) return;
+        const formArea = document.getElementById("form-area");
+        const formTypeTag = document.getElementById("form-type-tag");
+        let currentLetterType = null;
 
-          const targetMiddle =
-            targetRow.getBoundingClientRect().top +
-            targetRow.getBoundingClientRect().height / 2;
-          lampiranList.insertBefore(
-            draggedLampiranRow,
-            event.clientY < targetMiddle ? targetRow : targetRow.nextSibling,
-          );
-          updateLampiranNumbers();
-        });
+        async function openForm(slug) {
+          showView("view-form");
+          formTypeTag.textContent = "";
+          formArea.innerHTML = "<p>Memuat form&hellip;</p>";
+          try {
+            const res = await fetch(`/admin/letter-types/${encodeURIComponent(slug)}`);
+            if (!res.ok) throw new Error("Gagal memuat jenis surat.");
+            currentLetterType = await res.json();
+            formTypeTag.textContent = `Jenis surat: ${currentLetterType.name}`;
+            renderDynamicForm(currentLetterType);
+          } catch (err) {
+            formArea.innerHTML = "";
+            const p = setText(document.createElement("p"), err.message);
+            p.className = "dashboard-error";
+            formArea.appendChild(p);
+          }
+        }
 
-        function updateLampiranNumbers() {
-          lampiranList
-            .querySelectorAll(".lampiran-row")
-            .forEach((row, index) => {
+        function batchFieldMarkup(field) {
+          const id = `field_${field.field_key}`;
+          if (field.field_type === "date") {
+            return dateFieldMarkup(id, field.label, field.required);
+          }
+          const inputType = field.field_type === "number" ? "number" : "text";
+          return `
+            <div class="field">
+              <span class="field-label-text" data-label-for="${id}"></span>
+              <input type="${inputType}" id="${id}" ${field.required ? "required" : ""}>
+            </div>
+          `;
+        }
+
+        function renderDynamicForm(letterType) {
+          const fields = letterType.fields || [];
+          const batchFields = fields.filter((f) => f.level === "batch");
+          const recipientFields = fields.filter((f) => f.level === "recipient");
+
+          formArea.innerHTML = `
+            <form id="surat-form">
+              <section class="step">
+                <div class="step-head"><span class="step-num"></span><h2>Informasi Surat</h2></div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label for="nomor_surat">Nomor Surat</label>
+                    <input type="text" id="nomor_surat" required placeholder="Isikan nomor surat">
+                  </div>
+                  <div class="field">
+                    <label for="tempat_surat">Tempat Surat</label>
+                    <input type="text" id="tempat_surat" required placeholder="Isikan tempat surat">
+                  </div>
+                  ${dateFieldMarkup("tanggal_surat", "Tanggal Surat", true)}
+                  <div class="field">
+                    <label for="perihal_surat">Perihal</label>
+                    <input type="text" id="perihal_surat" required placeholder="Isikan perihal surat">
+                  </div>
+                </div>
+              </section>
+
+              ${
+                batchFields.length > 0
+                  ? `
+              <section class="step">
+                <div class="step-head">
+                  <span class="step-num"></span><h2>Detail Tambahan</h2>
+                  <span class="hint">Khusus jenis surat ini</span>
+                </div>
+                <div class="field-grid">
+                  ${batchFields.map(batchFieldMarkup).join("")}
+                </div>
+              </section>`
+                  : ""
+              }
+
+              <section class="step">
+                <div class="step-head">
+                  <span class="step-num"></span><h2>Lampiran</h2>
+                  <span class="hint">Berlaku untuk semua penerima</span>
+                </div>
+                <div class="row-list" id="lampiran-list"></div>
+                <button type="button" class="add-btn" id="add-lampiran">+ Tambahkan lampiran</button>
+              </section>
+
+              <section class="step">
+                <div class="step-head"><span class="step-num"></span><h2>Penerima</h2></div>
+                <div class="mode-toggle">
+                  <button type="button" class="mode-btn active" data-mode="list">Isi Daftar Langsung</button>
+                  <button type="button" class="mode-btn" data-mode="csv">Upload CSV</button>
+                </div>
+                <div id="mode-list">
+                  <div class="row-list" id="recipient-list"></div>
+                  <button type="button" class="add-btn" id="add-recipient">+ Tambahkan penerima</button>
+                </div>
+                <div id="mode-csv" style="display: none">
+                  <div class="field">
+                    <label for="recipients_csv">File CSV</label>
+                    <input type="file" id="recipients_csv" accept=".csv">
+                  </div>
+                  <p class="csv-hint">
+                    Kolom wajib: <code id="csv-columns-hint"></code>.
+                    <a href="#" id="download-template">Unduh contoh template CSV</a>
+                  </p>
+                </div>
+              </section>
+
+              <section class="step">
+                <div class="step-head"><span class="step-num"></span><h2>Buat Dokumen</h2></div>
+                <div class="submit-area">
+                  <div class="stamp" id="stamp">SIAP<br>DIKIRIM</div>
+                  <button type="submit" class="submit" id="submit-btn">Generate &amp; Unduh ZIP</button>
+                </div>
+                <div class="status" id="status" role="status" aria-live="polite"></div>
+                <div class="progress-wrap" id="progress-wrap">
+                  <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+                  <div class="progress-label" id="progress-label"></div>
+                </div>
+              </section>
+            </form>
+          `;
+
+          // fill in label texts safely (avoids HTML-escaping admin-typed labels)
+          formArea.querySelectorAll(".field-label-text[data-label-for]").forEach((span) => {
+            const id = span.getAttribute("data-label-for");
+            const field = batchFields.find((f) => `field_${f.field_key}` === id);
+            const label = document.createElement("label");
+            label.setAttribute("for", id);
+            label.textContent = id === "tanggal_surat" ? "Tanggal Surat" : field ? field.label : "";
+            span.replaceWith(label);
+          });
+
+          setupDateField("tanggal_surat");
+          batchFields
+            .filter((f) => f.field_type === "date")
+            .forEach((f) => setupDateField(`field_${f.field_key}`));
+
+          setupLampiranSection();
+          setupRecipientSection(recipientFields);
+          setupSubmitHandler(batchFields, recipientFields);
+
+          renumberSteps(formArea);
+          updateStampState();
+        }
+
+        function setupLampiranSection() {
+          const lampiranList = document.getElementById("lampiran-list");
+          let lampiranRowCount = 0;
+          let draggedLampiranRow = null;
+
+          function updateLampiranNumbers() {
+            lampiranList.querySelectorAll(".lampiran-row").forEach((row, index) => {
               const order = row.querySelector(".lampiran-order");
               order.textContent = index + 1;
               order.setAttribute("aria-label", `Urutan lampiran ${index + 1}`);
             });
-        }
+          }
 
-        function setupLampiranDrag(row) {
-          const dragHandle = row.querySelector(".drag-handle");
-          dragHandle.addEventListener("dragstart", (event) => {
-            draggedLampiranRow = row;
-            row.classList.add("dragging");
-            row.setAttribute("aria-grabbed", "true");
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", row.dataset.lampiranId);
+          lampiranList.addEventListener("dragover", (event) => {
+            if (!draggedLampiranRow) return;
+            event.preventDefault();
+            const targetRow = event.target.closest(".lampiran-row");
+            if (!targetRow || targetRow === draggedLampiranRow) return;
+            const targetMiddle =
+              targetRow.getBoundingClientRect().top + targetRow.getBoundingClientRect().height / 2;
+            lampiranList.insertBefore(
+              draggedLampiranRow,
+              event.clientY < targetMiddle ? targetRow : targetRow.nextSibling,
+            );
+            updateLampiranNumbers();
           });
-          dragHandle.addEventListener("dragend", () => {
-            row.classList.remove("dragging");
+
+          function setupLampiranDrag(row) {
+            const dragHandle = row.querySelector(".drag-handle");
+            dragHandle.addEventListener("dragstart", (event) => {
+              draggedLampiranRow = row;
+              row.classList.add("dragging");
+              row.setAttribute("aria-grabbed", "true");
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", row.dataset.lampiranId);
+            });
+            dragHandle.addEventListener("dragend", () => {
+              row.classList.remove("dragging");
+              row.setAttribute("aria-grabbed", "false");
+              draggedLampiranRow = null;
+              updateStampState();
+            });
+          }
+
+          function addLampiranRow() {
+            lampiranRowCount += 1;
+            const rowId = lampiranRowCount;
+            const row = document.createElement("div");
+            row.className = "lampiran-row";
+            row.dataset.lampiranId = rowId;
             row.setAttribute("aria-grabbed", "false");
-            draggedLampiranRow = null;
-            updateStampState();
-          });
-        }
-
-        function addLampiranRow() {
-          lampiranRowCount += 1;
-          const rowId = lampiranRowCount;
-          const row = document.createElement("div");
-          row.className = "lampiran-row";
-          row.dataset.lampiranId = rowId;
-          row.setAttribute("aria-grabbed", "false");
-          row.innerHTML = `
-            <span class="lampiran-order" aria-label="Urutan lampiran">${rowId}</span>
-            <button type="button" class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-label="Seret untuk mengubah urutan">&#9776;</button>
-            <div class="field">
-              <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
-              <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
-            </div>
-            <div class="field">
-              <label for="lampiran-file-${rowId}">File PDF</label>
-              <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
-            </div>
-            <button type="button" class="remove-btn" title="Hapus lampiran ini" aria-label="Hapus lampiran ini">&#128465;</button>
-          `;
-          row.querySelector(".remove-btn").addEventListener("click", () => {
-            row.remove();
+            row.innerHTML = `
+              <span class="lampiran-order" aria-label="Urutan lampiran">${rowId}</span>
+              <button type="button" class="drag-handle" draggable="true" title="Seret untuk mengubah urutan" aria-label="Seret untuk mengubah urutan">&#9776;</button>
+              <div class="field">
+                <label for="lampiran-judul-${rowId}">Judul Lampiran</label>
+                <input type="text" id="lampiran-judul-${rowId}" class="lampiran-judul" placeholder="Isikan judul lampiran" maxlength="150" required>
+              </div>
+              <div class="field">
+                <label for="lampiran-file-${rowId}">File PDF</label>
+                <input type="file" id="lampiran-file-${rowId}" class="lampiran-file" accept=".pdf,application/pdf" required>
+              </div>
+              <button type="button" class="remove-btn" title="Hapus lampiran ini" aria-label="Hapus lampiran ini">&#128465;</button>
+            `;
+            row.querySelector(".remove-btn").addEventListener("click", () => {
+              row.remove();
+              updateLampiranNumbers();
+              updateStampState();
+            });
+            setupLampiranDrag(row);
+            lampiranList.appendChild(row);
             updateLampiranNumbers();
             updateStampState();
-          });
-          setupLampiranDrag(row);
-          lampiranList.appendChild(row);
-          updateLampiranNumbers();
-          updateStampState();
-        }
-        document
-          .getElementById("add-lampiran")
-          .addEventListener("click", addLampiranRow);
-        addLampiranRow();
+          }
 
-        function addRecipientRow() {
-          recipientRowCount += 1;
-          const rowId = recipientRowCount;
-          const row = document.createElement("div");
-          row.className = "recipient-row";
-          row.innerHTML = `
-            <span class="recipient-order" aria-label="Urutan dosen">${rowId}</span>
-            <div class="field">
-              <label for="rec-nama-${rowId}">Nama Dosen</label>
-              <input type="text" id="rec-nama-${rowId}" class="rec-nama" placeholder="Isikan nama dosen" maxlength="150" required>
-            </div>
-            <div class="field">
-              <label for="rec-matkul-${rowId}">Mata Kuliah</label>
-              <input type="text" id="rec-matkul-${rowId}" class="rec-matkul" placeholder="Isikan mata kuliah" maxlength="150" required>
-            </div>
-            <div class="field">
-              <label for="rec-semester-${rowId}">Semester</label>
-              <input type="text" id="rec-semester-${rowId}" class="rec-semester" placeholder="Isikan semester" maxlength="30" required>
-            </div>
-            <button type="button" class="remove-btn" title="Hapus penerima ini" aria-label="Hapus penerima ini">&#128465;</button>
-          `;
-          row.querySelector(".remove-btn").addEventListener("click", () => {
-            row.remove();
-            updateRecipientNumbers();
-            updateStampState();
-          });
-          recipientList.appendChild(row);
-          updateRecipientNumbers();
-          updateStampState();
+          document.getElementById("add-lampiran").addEventListener("click", addLampiranRow);
+          addLampiranRow();
         }
 
-        function updateRecipientNumbers() {
-          recipientList
-            .querySelectorAll(".recipient-row")
-            .forEach((row, index) => {
+        function setupRecipientSection(recipientFields) {
+          const recipientList = document.getElementById("recipient-list");
+          const gridColumns = `auto ${"minmax(0, 1fr) ".repeat(recipientFields.length)}auto`;
+          let recipientRowCount = 0;
+
+          function updateRecipientNumbers() {
+            recipientList.querySelectorAll(".recipient-row").forEach((row, index) => {
               const order = row.querySelector(".recipient-order");
               order.textContent = index + 1;
-              order.setAttribute("aria-label", `Urutan dosen ${index + 1}`);
+              order.setAttribute("aria-label", `Urutan penerima ${index + 1}`);
             });
-        }
-        document
-          .getElementById("add-recipient")
-          .addEventListener("click", addRecipientRow);
-        addRecipientRow();
+          }
 
-        let recipientsMode = "list";
-        const modeButtons = document.querySelectorAll(".mode-btn");
-        const modeList = document.getElementById("mode-list");
-        const modeCsv = document.getElementById("mode-csv");
+          function addRecipientRow() {
+            recipientRowCount += 1;
+            const rowId = recipientRowCount;
+            const row = document.createElement("div");
+            row.className = "recipient-row";
+            row.style.gridTemplateColumns = gridColumns;
 
-        modeButtons.forEach((btn) => {
-          btn.addEventListener("click", () => {
-            modeButtons.forEach((b) => b.classList.remove("active"));
-            btn.classList.add("active");
-            recipientsMode = btn.dataset.mode;
-            modeList.style.display =
-              recipientsMode === "list" ? "block" : "none";
-            modeCsv.style.display = recipientsMode === "csv" ? "block" : "none";
+            const order = document.createElement("span");
+            order.className = "recipient-order";
+            order.setAttribute("aria-label", "Urutan penerima");
+            order.textContent = rowId;
+            row.appendChild(order);
 
-            // Toggle 'required' mengikuti mode aktif, supaya field yang
-            // tersembunyi tidak ikut memblokir validasi form saat submit
-            const isListMode = recipientsMode === "list";
-            document
-              .querySelectorAll(".rec-nama, .rec-matkul, .rec-semester")
-              .forEach((el) => {
-                el.required = isListMode;
-              });
+            recipientFields.forEach((field) => {
+              const inputId = `rec-${field.field_key}-${rowId}`;
 
-            // Tambahan: toggle required untuk file CSV mengikuti mode
-            document.getElementById("recipients_csv").required = !isListMode;
+              if (field.field_type === "date") {
+                const temp = document.createElement("div");
+                temp.innerHTML = dateFieldMarkup(inputId, field.label, field.required);
+                const fieldDiv = temp.firstElementChild;
+                const lbl = document.createElement("label");
+                lbl.setAttribute("for", inputId);
+                lbl.textContent = field.label;
+                fieldDiv.querySelector(".field-label-text").replaceWith(lbl);
+                const nativeInput = fieldDiv.querySelector("input.date-native");
+                nativeInput.dataset.fieldKey = field.field_key;
+                nativeInput.dataset.required = String(!!field.required);
+                row.appendChild(fieldDiv);
+                setupDateField(inputId);
+              } else {
+                const wrapper = document.createElement("div");
+                wrapper.className = "field";
+                const label = document.createElement("label");
+                label.setAttribute("for", inputId);
+                label.textContent = field.label;
+                const input = document.createElement("input");
+                input.type = field.field_type === "number" ? "number" : "text";
+                input.id = inputId;
+                input.dataset.fieldKey = field.field_key;
+                input.dataset.required = String(!!field.required);
+                input.required = !!field.required;
+                input.placeholder = `Isikan ${field.label.toLowerCase()}`;
+                wrapper.append(label, input);
+                row.appendChild(wrapper);
+              }
+            });
 
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className = "remove-btn";
+            removeBtn.title = "Hapus penerima ini";
+            removeBtn.setAttribute("aria-label", "Hapus penerima ini");
+            removeBtn.innerHTML = "&#128465;";
+            removeBtn.addEventListener("click", () => {
+              row.remove();
+              updateRecipientNumbers();
+              updateStampState();
+            });
+            row.appendChild(removeBtn);
+
+            recipientList.appendChild(row);
+            updateRecipientNumbers();
             updateStampState();
+          }
+
+          document.getElementById("add-recipient").addEventListener("click", addRecipientRow);
+          addRecipientRow();
+
+          // mode toggle (list vs csv)
+          let recipientsMode = "list";
+          const modeButtons = document.querySelectorAll(".mode-btn");
+          const modeList = document.getElementById("mode-list");
+          const modeCsv = document.getElementById("mode-csv");
+          const csvColumnsHint = document.getElementById("csv-columns-hint");
+          csvColumnsHint.textContent = recipientFields.map((f) => f.field_key).join(", ");
+          if (recipientFields.some((f) => f.field_type === "date")) {
+            const dateNote = document.createElement("small");
+            dateNote.className = "field-hint";
+            dateNote.style.display = "block";
+            dateNote.style.marginTop = "4px";
+            dateNote.textContent = "Untuk kolom bertipe tanggal, isi dengan format YYYY-MM-DD (mis. 2026-08-22).";
+            modeCsv.querySelector(".csv-hint").after(dateNote);
+          }
+
+          modeButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+              modeButtons.forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+              recipientsMode = btn.dataset.mode;
+              modeList.style.display = recipientsMode === "list" ? "block" : "none";
+              modeCsv.style.display = recipientsMode === "csv" ? "block" : "none";
+
+              const isListMode = recipientsMode === "list";
+              recipientList.querySelectorAll("[data-field-key]").forEach((el) => {
+                el.required = isListMode && el.dataset.required === "true";
+              });
+              document.getElementById("recipients_csv").required = !isListMode;
+
+              updateStampState();
+            });
           });
-        });
-        document
-          .getElementById("recipients_csv")
-          .addEventListener("change", updateStampState);
-        document
-          .getElementById("download-template")
-          .addEventListener("click", (e) => {
+          document.getElementById("recipients_csv").addEventListener("change", updateStampState);
+          document.getElementById("download-template").addEventListener("click", (e) => {
             e.preventDefault();
-            const csv =
-              'nama_dosen,mata_kuliah,semester\n"apt. Fulan, M.Farm",Farmakologi,V (Lima)\n';
-            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const header = recipientFields.map((f) => f.field_key).join(",");
+            const blob = new Blob([`${header}\n`], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -1262,39 +1503,49 @@
             URL.revokeObjectURL(url);
           });
 
+          formArea.dataset.recipientsMode = recipientsMode;
+          formArea._getRecipientsMode = () => recipientsMode;
+        }
+
         function updateStampState() {
-          const formOk = document.getElementById("surat-form").checkValidity();
-          stampEl.classList.toggle("ready", formOk);
-        }
-        document
-          .getElementById("surat-form")
-          .addEventListener("input", updateStampState);
-        updateStampState();
-
-        function setStatus(type, message) {
-          statusEl.className = "status show " + type;
-          statusEl.textContent = message;
-        }
-        function clearStatus() {
-          statusEl.className = "status";
-          statusEl.textContent = "";
+          const form = document.getElementById("surat-form");
+          const stampEl = document.getElementById("stamp");
+          if (!form || !stampEl) return;
+          stampEl.classList.toggle("ready", form.checkValidity());
         }
 
-        const progressWrap = document.getElementById("progress-wrap");
-        const progressFill = document.getElementById("progress-fill");
-        const progressLabel = document.getElementById("progress-label");
+        function setupSubmitHandler(batchFields, recipientFields) {
+          const form = document.getElementById("surat-form");
+          form.addEventListener("input", updateStampState);
 
-        document
-          .getElementById("surat-form")
-          .addEventListener("submit", async (e) => {
+          const statusEl = document.getElementById("status");
+          const submitBtn = document.getElementById("submit-btn");
+          const progressWrap = document.getElementById("progress-wrap");
+          const progressFill = document.getElementById("progress-fill");
+          const progressLabel = document.getElementById("progress-label");
+
+          function setStatus(type, message) {
+            statusEl.className = "status show " + type;
+            statusEl.textContent = message;
+          }
+          function clearStatus() {
+            statusEl.className = "status";
+            statusEl.textContent = "";
+          }
+          function errorDetailToMessage(detail) {
+            if (Array.isArray(detail)) return detail.join("; ");
+            if (typeof detail === "string") return detail;
+            return JSON.stringify(detail);
+          }
+
+          form.addEventListener("submit", async (e) => {
             e.preventDefault();
             clearStatus();
             progressWrap.classList.remove("show");
             progressFill.style.width = "0%";
             progressLabel.textContent = "";
 
-            const lampiranJudulEls =
-              document.querySelectorAll(".lampiran-judul");
+            const lampiranJudulEls = document.querySelectorAll(".lampiran-judul");
             const lampiranFileEls = document.querySelectorAll(".lampiran-file");
             const lampirans = [];
             const lampiranFiles = [];
@@ -1306,54 +1557,49 @@
             const invalidLampiran = lampiranFiles.find(
               (file) =>
                 !file ||
-                (!file.type.includes("pdf") &&
-                  !file.name.toLowerCase().endsWith(".pdf")) ||
+                (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".pdf")) ||
                 file.size > 10 * 1024 * 1024,
             );
             if (invalidLampiran) {
-              setStatus(
-                "error",
-                "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.",
-              );
+              setStatus("error", "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.");
               return;
             }
+
+            const customFields = {};
+            batchFields.forEach((f) => {
+              const el = document.getElementById(`field_${f.field_key}`);
+              customFields[f.field_key] = el ? el.value : "";
+            });
 
             const batchInfo = {
               nomor_surat: document.getElementById("nomor_surat").value,
               tempat_surat: document.getElementById("tempat_surat").value,
               tanggal_surat: document.getElementById("tanggal_surat").value,
               perihal_surat: document.getElementById("perihal_surat").value,
-              program_studi: document.getElementById("program_studi").value,
-              tahun_akademik: document.getElementById("tahun_akademik").value,
-              tanggal_mulai_perkuliahan: document.getElementById(
-                "tanggal_mulai_perkuliahan",
-              ).value,
               lampirans: lampirans,
+              custom_fields: customFields,
             };
 
             const formData = new FormData();
             formData.append("batch_info", JSON.stringify(batchInfo));
-            lampiranFiles.forEach((file) =>
-              formData.append("lampiran_files", file),
-            );
+            lampiranFiles.forEach((file) => formData.append("lampiran_files", file));
+
+            const recipientsMode = formArea._getRecipientsMode ? formArea._getRecipientsMode() : "list";
             formData.append("recipients_mode", recipientsMode);
 
             if (recipientsMode === "list") {
-              const namaEls = document.querySelectorAll(".rec-nama");
-              const matkulEls = document.querySelectorAll(".rec-matkul");
-              const semesterEls = document.querySelectorAll(".rec-semester");
               const recipients = [];
-              namaEls.forEach((el, i) => {
-                recipients.push({
-                  nama_dosen: el.value,
-                  mata_kuliah: matkulEls[i].value,
-                  semester: semesterEls[i].value,
+              document.querySelectorAll("#recipient-list .recipient-row").forEach((row) => {
+                const rec = {};
+                recipientFields.forEach((f) => {
+                  const el = row.querySelector(`[data-field-key="${f.field_key}"]`);
+                  rec[f.field_key] = el ? el.value : "";
                 });
+                recipients.push(rec);
               });
               formData.append("recipients_json", JSON.stringify(recipients));
             } else {
-              const csvFile =
-                document.getElementById("recipients_csv").files[0];
+              const csvFile = document.getElementById("recipients_csv").files[0];
               if (!csvFile) {
                 setStatus("error", "Pilih file CSV terlebih dahulu.");
                 return;
@@ -1365,22 +1611,16 @@
             setStatus("loading", "Mengirim data ke server…");
 
             try {
-              const response = await fetch(
-                "/surat/permohonan-mengajar/generate",
-                {
-                  method: "POST",
-                  body: formData,
-                },
-              );
+              const response = await fetch(`/generate/${encodeURIComponent(currentLetterType.slug)}`, {
+                method: "POST",
+                body: formData,
+              });
 
               if (!response.ok) {
                 let detail = "Terjadi kesalahan saat memproses dokumen.";
                 try {
                   const errJson = await response.json();
-                  detail =
-                    typeof errJson.detail === "string"
-                      ? errJson.detail
-                      : JSON.stringify(errJson.detail);
+                  detail = errorDetailToMessage(errJson.detail);
                 } catch (_) {
                   /* biarkan pesan default */
                 }
@@ -1391,14 +1631,12 @@
 
               const { job_id, total } = await response.json();
               progressWrap.classList.add("show");
-              setStatus("loading", `Memproses dokumen…`);
+              setStatus("loading", "Memproses dokumen…");
               progressLabel.textContent = `0/${total} dokumen selesai`;
 
               const pollInterval = setInterval(async () => {
                 try {
-                  const statusRes = await fetch(
-                    `/surat/permohonan-mengajar/jobs/${job_id}/status`,
-                  );
+                  const statusRes = await fetch(`/generate/jobs/${job_id}/status`);
                   if (!statusRes.ok) {
                     clearInterval(pollInterval);
                     setStatus("error", "Gagal memeriksa status proses.");
@@ -1406,10 +1644,7 @@
                     return;
                   }
                   const jobStatus = await statusRes.json();
-                  const pct =
-                    jobStatus.total > 0
-                      ? Math.round((jobStatus.current / jobStatus.total) * 100)
-                      : 0;
+                  const pct = jobStatus.total > 0 ? Math.round((jobStatus.current / jobStatus.total) * 100) : 0;
                   progressFill.style.width = pct + "%";
                   progressLabel.textContent = `${jobStatus.current}/${jobStatus.total} dokumen selesai`;
 
@@ -1417,9 +1652,7 @@
                     clearInterval(pollInterval);
                     setStatus("loading", "Menyiapkan unduhan…");
 
-                    const downloadRes = await fetch(
-                      `/surat/permohonan-mengajar/jobs/${job_id}/download`,
-                    );
+                    const downloadRes = await fetch(`/generate/jobs/${job_id}/download`);
                     if (!downloadRes.ok) {
                       setStatus("error", "Gagal mengunduh hasil.");
                       submitBtn.disabled = false;
@@ -1429,41 +1662,233 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "hasil_surat_permohonan_mengajar.zip";
+                    a.download = `hasil_${currentLetterType.slug}.zip`;
                     a.click();
                     URL.revokeObjectURL(url);
 
-                    setStatus(
-                      "success",
-                      "Dokumen berhasil dibuat dan diunduh.",
-                    );
+                    setStatus("success", "Dokumen berhasil dibuat dan diunduh.");
                     submitBtn.disabled = false;
                   } else if (jobStatus.status === "error") {
                     clearInterval(pollInterval);
-                    setStatus(
-                      "error",
-                      jobStatus.error ||
-                        "Terjadi kesalahan saat memproses dokumen.",
-                    );
+                    setStatus("error", jobStatus.error || "Terjadi kesalahan saat memproses dokumen.");
                     submitBtn.disabled = false;
                   }
                 } catch (err) {
                   clearInterval(pollInterval);
-                  setStatus(
-                    "error",
-                    "Tidak dapat terhubung ke server: " + err.message,
-                  );
+                  setStatus("error", "Tidak dapat terhubung ke server: " + err.message);
                   submitBtn.disabled = false;
                 }
               }, 1200);
             } catch (err) {
-              setStatus(
-                "error",
-                "Tidak dapat terhubung ke server: " + err.message,
-              );
+              setStatus("error", "Tidak dapat terhubung ke server: " + err.message);
               submitBtn.disabled = false;
             }
           });
+        }
+
+        // ---------- admin: tambah jenis surat ----------
+
+        let selectedTemplateFile = null;
+        let detectedVariables = [];
+        let slugManuallyEdited = false;
+
+        function slugify(text) {
+          return text
+            .toString()
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+        }
+
+        function resetAdminWizard() {
+          selectedTemplateFile = null;
+          detectedVariables = [];
+          slugManuallyEdited = false;
+          document.getElementById("admin-template-file").value = "";
+          document.getElementById("admin-name").value = "";
+          document.getElementById("admin-slug").value = "";
+          document.getElementById("admin-fields-list").innerHTML = "";
+          document.getElementById("admin-no-vars-note").style.display = "none";
+          document.getElementById("admin-step-2").style.display = "none";
+          document.getElementById("admin-inspect-status").className = "status";
+          document.getElementById("admin-inspect-status").textContent = "";
+          document.getElementById("admin-submit-status").className = "status";
+          document.getElementById("admin-submit-status").textContent = "";
+        }
+
+        function openAdminWizard() {
+          resetAdminWizard();
+          showView("view-admin-add");
+        }
+
+        document.getElementById("admin-template-file").addEventListener("change", (e) => {
+          selectedTemplateFile = e.target.files[0] || null;
+        });
+
+        document.getElementById("admin-inspect-btn").addEventListener("click", async () => {
+          const statusEl = document.getElementById("admin-inspect-status");
+          if (!selectedTemplateFile) {
+            statusEl.className = "status show error";
+            statusEl.textContent = "Pilih file template docx terlebih dahulu.";
+            return;
+          }
+
+          statusEl.className = "status show loading";
+          statusEl.textContent = "Mendeteksi variabel…";
+
+          try {
+            const formData = new FormData();
+            formData.append("template_file", selectedTemplateFile);
+            const res = await fetch("/admin/letter-types/inspect", { method: "POST", body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Gagal mendeteksi variabel.");
+
+            detectedVariables = data.detected_variables || [];
+            statusEl.className = "status";
+            statusEl.textContent = "";
+            renderAdminFieldsStep(detectedVariables);
+            document.getElementById("admin-step-2").style.display = "block";
+          } catch (err) {
+            statusEl.className = "status show error";
+            statusEl.textContent = err.message;
+          }
+        });
+
+        function humanizeKey(key) {
+          return key
+            .split("_")
+            .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+            .join(" ");
+        }
+
+        function renderAdminFieldsStep(variables) {
+          const list = document.getElementById("admin-fields-list");
+          list.innerHTML = "";
+          document.getElementById("admin-no-vars-note").style.display = variables.length === 0 ? "block" : "none";
+
+          variables.forEach((key) => {
+            const row = document.createElement("div");
+            row.className = "admin-field-row";
+            row.dataset.fieldKey = key;
+
+            const keyCol = document.createElement("div");
+            keyCol.className = "field";
+            const keyLabel = document.createElement("span");
+            keyLabel.className = "field-key-label";
+            keyLabel.textContent = `{{ ${key} }}`;
+            const labelInput = document.createElement("input");
+            labelInput.type = "text";
+            labelInput.className = "admin-field-label-input";
+            labelInput.value = humanizeKey(key);
+            keyCol.append(keyLabel, labelInput);
+
+            const typeCol = document.createElement("div");
+            typeCol.className = "field";
+            const typeLabel = setText(document.createElement("label"), "Tipe");
+            const typeSelect = document.createElement("select");
+            typeSelect.className = "admin-field-type-select";
+            [
+              ["text", "Teks"],
+              ["date", "Tanggal"],
+              ["number", "Angka"],
+            ].forEach(([value, text]) => {
+              const opt = new Option(text, value);
+              typeSelect.appendChild(opt);
+            });
+            typeCol.append(typeLabel, typeSelect);
+
+            const levelCol = document.createElement("div");
+            levelCol.className = "field";
+            const levelLabel = setText(document.createElement("label"), "Level");
+            const levelSelect = document.createElement("select");
+            levelSelect.className = "admin-field-level-select";
+            [
+              ["batch", "Sekali per surat"],
+              ["recipient", "Per penerima"],
+            ].forEach(([value, text]) => {
+              const opt = new Option(text, value);
+              levelSelect.appendChild(opt);
+            });
+            levelCol.append(levelLabel, levelSelect);
+
+            const requiredCol = document.createElement("label");
+            requiredCol.className = "admin-required-toggle";
+            const requiredCheckbox = document.createElement("input");
+            requiredCheckbox.type = "checkbox";
+            requiredCheckbox.className = "admin-field-required-checkbox";
+            requiredCheckbox.checked = true;
+            requiredCol.append(requiredCheckbox, document.createTextNode("Wajib"));
+
+            row.append(keyCol, typeCol, levelCol, requiredCol);
+            list.appendChild(row);
+          });
+        }
+
+        document.getElementById("admin-name").addEventListener("input", (e) => {
+          if (!slugManuallyEdited) {
+            document.getElementById("admin-slug").value = slugify(e.target.value);
+          }
+        });
+        document.getElementById("admin-slug").addEventListener("input", () => {
+          slugManuallyEdited = true;
+        });
+
+        document.getElementById("admin-submit-btn").addEventListener("click", async () => {
+          const statusEl = document.getElementById("admin-submit-status");
+          const name = document.getElementById("admin-name").value.trim();
+          const slug = document.getElementById("admin-slug").value.trim();
+
+          if (!name || !slug) {
+            statusEl.className = "status show error";
+            statusEl.textContent = "Nama dan slug jenis surat wajib diisi.";
+            return;
+          }
+          if (!selectedTemplateFile) {
+            statusEl.className = "status show error";
+            statusEl.textContent = "Template docx tidak ditemukan, silakan upload ulang di langkah 1.";
+            return;
+          }
+
+          const fieldsConfig = [];
+          document.querySelectorAll("#admin-fields-list .admin-field-row").forEach((row) => {
+            fieldsConfig.push({
+              field_key: row.dataset.fieldKey,
+              label: row.querySelector(".admin-field-label-input").value.trim() || row.dataset.fieldKey,
+              field_type: row.querySelector(".admin-field-type-select").value,
+              level: row.querySelector(".admin-field-level-select").value,
+              required: row.querySelector(".admin-field-required-checkbox").checked,
+            });
+          });
+
+          statusEl.className = "status show loading";
+          statusEl.textContent = "Menyimpan jenis surat…";
+
+          try {
+            const formData = new FormData();
+            formData.append("name", name);
+            formData.append("slug", slug);
+            formData.append("fields_config", JSON.stringify(fieldsConfig));
+            formData.append("template_file", selectedTemplateFile);
+
+            const res = await fetch("/admin/letter-types", { method: "POST", body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Gagal menyimpan jenis surat.");
+
+            statusEl.className = "status show success";
+            statusEl.textContent = `Jenis surat "${data.name}" berhasil dibuat.`;
+            setTimeout(() => {
+              showView("view-dashboard");
+              loadDashboard();
+            }, 900);
+          } catch (err) {
+            statusEl.className = "status show error";
+            statusEl.textContent = err.message;
+          }
+        });
+
+        // ---------- init ----------
+        loadDashboard();
       })();
     </script>
   </body>

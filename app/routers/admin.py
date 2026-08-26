@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.database import engine
 from app.models.letter_type import LetterType, LetterField
+from app.services.letter_type_repo import get_letter_type_with_fields
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
 
 router = APIRouter(prefix="/admin/letter-types", tags=["Admin - Jenis Surat"])
@@ -87,8 +88,9 @@ def create_letter_type(
             session.add(field)
 
         session.commit()
+        result = {"id": letter_type.id, "slug": letter_type.slug, "name": letter_type.name}
 
-    return {"id": letter_type.id, "slug": letter_type.slug, "name": letter_type.name}
+    return result
 
 
 @router.get("")
@@ -101,16 +103,11 @@ def list_letter_types():
 @router.get("/{slug}")
 def get_letter_type(slug: str):
     with Session(engine) as session:
-        letter_type = session.exec(select(LetterType).where(LetterType.slug == slug)).first()
-        if not letter_type:
+        result = get_letter_type_with_fields(session, slug)
+        if not result:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
-        fields = session.exec(
-            select(LetterField)
-            .where(LetterField.letter_type_id == letter_type.id)
-            .order_by(LetterField.display_order)
-        ).all()
-
+        letter_type, fields = result
         return {
             "id": letter_type.id,
             "slug": letter_type.slug,

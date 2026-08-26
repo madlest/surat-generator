@@ -33,6 +33,15 @@ def build_recipient_filename(nama_dosen: str, mata_kuliah: str, semester: str) -
     raw_name = f"{nama_dosen} - {mata_kuliah} - Semester {semester}"
     return f"{sanitize_filename(raw_name)}.pdf"
 
+
+def build_generic_recipient_filename(label: str, index: int) -> str:
+    """
+    Bangun nama file PDF per recipient untuk jenis surat dinamis,
+    dari label gabungan nilai field-field recipient (mis. "Budi - Farmakologi").
+    """
+    return sanitize_filename(label) if label else f"Penerima {index}"
+
+
 def angka_ke_terbilang(n: int) -> str:
     """
     Ubah angka non-negatif jadi kata bilangan Bahasa Indonesia.

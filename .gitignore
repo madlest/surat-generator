@@ -3,3 +3,5 @@ temp
 .env
 __pycache__/
 *.pyc
+*.db
+app/templates/uploaded/
