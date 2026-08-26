@@ -1,15 +1,16 @@
-# Fungsi main untuk FastAPI
-
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import permohonan_mengajar
+from app.core.database import init_db
+from app.routers import permohonan_mengajar, admin
 
-# Tanpa root_path karena aplikasi sudah jalan langsung di root domain (/)
 app = FastAPI(title="Surat Generator")
 
+init_db()
+
 app.include_router(permohonan_mengajar.router)
+app.include_router(admin.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
