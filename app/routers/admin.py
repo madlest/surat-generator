@@ -75,6 +75,9 @@ def create_letter_type(
         session.commit()
         session.refresh(letter_type)
 
+        if letter_type.id is None:
+            raise HTTPException(status_code=500, detail="Gagal membuat jenis surat.")
+
         for index, field_data in enumerate(fields_data):
             field = LetterField(
                 letter_type_id=letter_type.id,

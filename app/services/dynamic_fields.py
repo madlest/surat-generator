@@ -20,6 +20,11 @@ def parse_field_value(raw_value, field: LetterField):
     """
     Ubah satu nilai mentah (string dari form/CSV) jadi tipe Python sesuai
     field.field_type, sambil menegakkan field.required.
+
+    Catatan format tanggal: fungsi ini selalu expect ISO (YYYY-MM-DD).
+    Titik masuk manapun (Mode List via native date picker, atau Mode CSV)
+    wajib sudah dinormalisasi ke ISO sebelum sampai sini — lihat
+    _normalize_csv_date untuk jalur CSV.
     """
     if raw_value is None or (isinstance(raw_value, str) and raw_value.strip() == ""):
         if field.required:
@@ -30,7 +35,7 @@ def parse_field_value(raw_value, field: LetterField):
         try:
             return datetime.strptime(str(raw_value).strip(), "%Y-%m-%d").date()
         except ValueError:
-            raise ValueError(f"'{field.label}' harus berupa tanggal dengan format YYYY-MM-DD.")
+            raise ValueError(f"'{field.label}' harus berupa tanggal dengan format DD-MM-YYYY.")
 
     if field.field_type == FieldType.number:
         value_str = str(raw_value).strip()
@@ -72,13 +77,29 @@ def parse_recipients_from_list(recipients_data: list[dict], recipient_fields: li
     return recipients
 
 
+def _normalize_csv_date(raw_value: str | None) -> str | None:
+    """
+    CSV minta user isi tanggal format DD-MM-YYYY (lebih familiar untuk
+    orang Indonesia), tapi parse_field_value expect YYYY-MM-DD (format
+    yang juga dikirim native date picker di Mode List). Fungsi ini
+    menjembatani keduanya di titik masuk CSV saja.
+    """
+    if raw_value is None or raw_value.strip() == "":
+        return raw_value
+    try:
+        return datetime.strptime(raw_value.strip(), "%d-%m-%Y").strftime("%Y-%m-%d")
+    except ValueError:
+        # Biarkan lolos apa adanya kalau tidak match format DD-MM-YYYY —
+        # nanti parse_field_value yang akan raise error yang informatif.
+        return raw_value
+
+
 def parse_recipients_from_csv(file_content: bytes, recipient_fields: list[LetterField]) -> list[dict]:
     """
     Header CSV yang diharapkan: persis field_key tiap LetterField level
     recipient (case-sensitive). Untuk field bertipe date, isi kolom dengan
-    format YYYY-MM-DD.
+    format DD-MM-YYYY.
     """
-    # utf-8-sig supaya toleran terhadap BOM yang sering disisipkan Excel
     text_stream = io.StringIO(file_content.decode("utf-8-sig"))
     reader = csv.DictReader(text_stream)
 
@@ -94,10 +115,18 @@ def parse_recipients_from_csv(file_content: bytes, recipient_fields: list[Letter
             f"Kolom yang terdeteksi: {', '.join(reader.fieldnames)}"
         )
 
+    date_field_keys = {field.field_key for field in recipient_fields if field.field_type == FieldType.date}
+
     recipients = []
-    # enumerate mulai dari 2 karena baris 1 adalah header
     for row_number, row in enumerate(reader, start=2):
         row_bersih = {k: (v.strip() if v else v) for k, v in row.items()}
+
+        # Normalisasi kolom date dari DD-MM-YYYY (format yang diminta ke user)
+        # ke YYYY-MM-DD (format yang dipahami parse_field_value), supaya
+        # logic parsing tanggal tetap satu jalur dengan Mode List.
+        for key in date_field_keys:
+            row_bersih[key] = _normalize_csv_date(row_bersih.get(key))
+
         recipients.append(parse_field_values(row_bersih, recipient_fields, f"Baris CSV ke-{row_number}"))
 
     if not recipients:
