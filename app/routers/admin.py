@@ -70,7 +70,7 @@ def create_letter_type(
             final_path.unlink(missing_ok=True)
             raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah terdaftar di database.")
 
-        letter_type = LetterType(name=name, slug=slug, template_path=str(final_path))
+        letter_type = LetterType(name=name, slug=slug, template_path=final_path.as_posix())
         session.add(letter_type)
         session.commit()
         session.refresh(letter_type)
