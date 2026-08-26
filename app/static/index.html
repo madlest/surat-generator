@@ -877,18 +877,26 @@
         <header class="masthead">
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1>Surat Generator</h1>
-          <p>Pilih jenis surat yang ingin dibuat, atau tambahkan jenis surat baru.</p>
+          <p>
+            Pilih jenis surat yang ingin dibuat, atau tambahkan jenis surat
+            baru.
+          </p>
         </header>
         <div class="dashboard-grid" id="dashboard-grid"></div>
       </div>
 
       <!-- ================= DYNAMIC FORM ================= -->
       <div class="view" id="view-form">
-        <button type="button" class="back-btn" id="back-to-dashboard-from-form">&larr; Kembali ke daftar jenis surat</button>
+        <button type="button" class="back-btn" id="back-to-dashboard-from-form">
+          &larr; Kembali ke daftar jenis surat
+        </button>
         <header class="masthead">
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1>Surat Generator</h1>
-          <p>Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge manual.</p>
+          <p>
+            Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge
+            manual.
+          </p>
           <span class="letter-type-tag" id="form-type-tag"></span>
         </header>
         <div id="form-area"></div>
@@ -896,7 +904,13 @@
 
       <!-- ================= ADMIN: TAMBAH JENIS SURAT ================= -->
       <div class="view" id="view-admin-add">
-        <button type="button" class="back-btn" id="back-to-dashboard-from-admin">&larr; Kembali ke daftar jenis surat</button>
+        <button
+          type="button"
+          class="back-btn"
+          id="back-to-dashboard-from-admin"
+        >
+          &larr; Kembali ke daftar jenis surat
+        </button>
         <header class="masthead">
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1>Tambah Jenis Surat Baru</h1>
@@ -912,11 +926,17 @@
             <label for="admin-template-file">File Template (.docx)</label>
             <input type="file" id="admin-template-file" accept=".docx" />
             <small class="field-hint">
-              Placeholder variabel di template ditulis dengan sintaks Jinja, misal
+              Placeholder variabel di template ditulis dengan sintaks Jinja,
+              misal
               <code>{{nama_dosen}}</code>.
             </small>
           </div>
-          <button type="button" class="add-btn" id="admin-inspect-btn" style="margin-top: 16px">
+          <button
+            type="button"
+            class="add-btn"
+            id="admin-inspect-btn"
+            style="margin-top: 16px"
+          >
             Deteksi Variabel &rarr;
           </button>
           <div class="status" id="admin-inspect-status"></div>
@@ -930,21 +950,36 @@
           <div class="field-grid">
             <div class="field">
               <label for="admin-name">Nama Jenis Surat</label>
-              <input type="text" id="admin-name" placeholder="Contoh: Surat Permohonan Mengajar" />
+              <input
+                type="text"
+                id="admin-name"
+                placeholder="Contoh: Surat Permohonan Mengajar"
+              />
             </div>
             <div class="field">
               <label for="admin-slug">Slug (identifier unik)</label>
-              <input type="text" id="admin-slug" placeholder="contoh: permohonan-mengajar" />
+              <input
+                type="text"
+                id="admin-slug"
+                placeholder="contoh: permohonan-mengajar"
+              />
             </div>
           </div>
 
           <div id="admin-no-vars-note" style="display: none; margin: 16px 0">
-            <small class="field-hint">Tidak ada variabel custom terdeteksi di template ini.</small>
+            <small class="field-hint"
+              >Tidak ada variabel custom terdeteksi di template ini.</small
+            >
           </div>
 
           <div id="admin-fields-list" style="margin-top: 20px"></div>
 
-          <button type="button" class="add-btn" id="admin-submit-btn" style="margin-top: 6px">
+          <button
+            type="button"
+            class="add-btn"
+            id="admin-submit-btn"
+            style="margin-top: 6px"
+          >
             Simpan Jenis Surat
           </button>
           <div class="status" id="admin-submit-status"></div>
@@ -973,20 +1008,33 @@
 
         const themeToggle = document.getElementById("theme-toggle");
         const themeIcon = document.getElementById("theme-icon");
-        document.getElementById("footer-year").textContent = new Date().getFullYear();
+        document.getElementById("footer-year").textContent =
+          new Date().getFullYear();
 
         function applyTheme(isDark) {
           document.body.classList.toggle("dark", isDark);
           themeIcon.textContent = isDark ? "☀" : "☾";
           themeToggle.setAttribute("aria-pressed", String(isDark));
-          themeToggle.setAttribute("aria-label", isDark ? "Gunakan mode terang" : "Gunakan mode gelap");
-          themeToggle.title = isDark ? "Gunakan mode terang" : "Gunakan mode gelap";
-          localStorage.setItem("surat-generator-theme", isDark ? "dark" : "light");
+          themeToggle.setAttribute(
+            "aria-label",
+            isDark ? "Gunakan mode terang" : "Gunakan mode gelap",
+          );
+          themeToggle.title = isDark
+            ? "Gunakan mode terang"
+            : "Gunakan mode gelap";
+          localStorage.setItem(
+            "surat-generator-theme",
+            isDark ? "dark" : "light",
+          );
         }
         const savedTheme = localStorage.getItem("surat-generator-theme");
-        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+        const prefersDark = window.matchMedia?.(
+          "(prefers-color-scheme: dark)",
+        ).matches;
         applyTheme(savedTheme ? savedTheme === "dark" : prefersDark);
-        themeToggle.addEventListener("click", () => applyTheme(!document.body.classList.contains("dark")));
+        themeToggle.addEventListener("click", () =>
+          applyTheme(!document.body.classList.contains("dark")),
+        );
 
         // ---------- shared helpers ----------
 
@@ -998,11 +1046,11 @@
         function formatDateIndonesia(value) {
           if (!value) return "";
           const [year, month, day] = value.split("-");
-          return `${day}/${month}/${year}`;
+          return `${day}-${month}-${year}`;
         }
 
         function parseDateIndonesia(value) {
-          const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          const match = value.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
           if (!match) return "";
           const [, day, month, year] = match;
           const date = new Date(Number(year), Number(month) - 1, Number(day));
@@ -1031,13 +1079,15 @@
             dateInput.value = isoDate;
             dateInput.setCustomValidity(
               displayInput.value && !isoDate
-                ? "Gunakan format DD/MM/YYYY dan masukkan tanggal yang valid."
+                ? "Gunakan format DD-MM-YYYY dan masukkan tanggal yang valid."
                 : "",
             );
             dateInput.dispatchEvent(new Event("input", { bubbles: true }));
           });
 
-          const pickerButton = document.querySelector(`[data-date-target="${nativeId}"]`);
+          const pickerButton = document.querySelector(
+            `[data-date-target="${nativeId}"]`,
+          );
           if (pickerButton) {
             pickerButton.addEventListener("click", () => {
               if (typeof dateInput.showPicker === "function") {
@@ -1055,14 +1105,14 @@
             <div class="field">
               <span class="field-label-text" data-label-for="${nativeId}"></span>
               <div class="date-input">
-                <input type="text" class="date-display" id="${nativeId}_display" placeholder="Contoh: 22/08/2026"
+                <input type="text" class="date-display" id="${nativeId}_display" placeholder="Contoh: 22-08-2026"
                   inputmode="numeric" autocomplete="off" aria-describedby="${nativeId}_hint">
                 <input type="date" class="date-native" id="${nativeId}" lang="id-ID" ${required ? "required" : ""}
                   aria-label="${labelText}">
                 <button type="button" class="date-picker-btn" data-date-target="${nativeId}"
                   title="Pilih tanggal dari kalender" aria-label="Pilih tanggal dari kalender">&#128197;</button>
               </div>
-              <small class="field-hint" id="${nativeId}_hint">Format: DD/MM/YYYY</small>
+              <small class="field-hint" id="${nativeId}_hint">Format: DD-MM-YYYY</small>
             </div>
           `;
         }
@@ -1077,9 +1127,14 @@
         // ---------- view switching ----------
 
         function showView(viewId) {
-          document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+          document
+            .querySelectorAll(".view")
+            .forEach((v) => v.classList.remove("active"));
           document.getElementById(viewId).classList.add("active");
-          window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+          window.scrollTo({
+            top: 0,
+            behavior: "instant" in window ? "instant" : "auto",
+          });
         }
 
         // ---------- dashboard ----------
@@ -1087,7 +1142,8 @@
         const dashboardGrid = document.getElementById("dashboard-grid");
 
         async function loadDashboard() {
-          dashboardGrid.innerHTML = '<p class="dashboard-loading">Memuat jenis surat&hellip;</p>';
+          dashboardGrid.innerHTML =
+            '<p class="dashboard-loading">Memuat jenis surat&hellip;</p>';
           try {
             const res = await fetch("/admin/letter-types");
             if (!res.ok) throw new Error("Gagal memuat daftar jenis surat.");
@@ -1095,7 +1151,9 @@
             renderDashboard(types);
           } catch (err) {
             dashboardGrid.innerHTML = "";
-            dashboardGrid.appendChild(setText(document.createElement("p"), err.message));
+            dashboardGrid.appendChild(
+              setText(document.createElement("p"), err.message),
+            );
             dashboardGrid.lastChild.className = "dashboard-error";
           }
         }
@@ -1104,7 +1162,10 @@
           dashboardGrid.innerHTML = "";
 
           if (types.length === 0) {
-            const empty = setText(document.createElement("p"), "Belum ada jenis surat. Tambahkan yang pertama.");
+            const empty = setText(
+              document.createElement("p"),
+              "Belum ada jenis surat. Tambahkan yang pertama.",
+            );
             empty.className = "dashboard-empty";
             dashboardGrid.appendChild(empty);
           }
@@ -1135,19 +1196,25 @@
           addCard.type = "button";
           addCard.className = "type-card add-new";
           addCard.innerHTML = '<span class="plus">+</span>';
-          addCard.appendChild(setText(document.createElement("span"), "Tambah Jenis Surat Baru"));
+          addCard.appendChild(
+            setText(document.createElement("span"), "Tambah Jenis Surat Baru"),
+          );
           addCard.addEventListener("click", openAdminWizard);
           dashboardGrid.appendChild(addCard);
         }
 
-        document.getElementById("back-to-dashboard-from-form").addEventListener("click", () => {
-          showView("view-dashboard");
-          loadDashboard();
-        });
-        document.getElementById("back-to-dashboard-from-admin").addEventListener("click", () => {
-          showView("view-dashboard");
-          loadDashboard();
-        });
+        document
+          .getElementById("back-to-dashboard-from-form")
+          .addEventListener("click", () => {
+            showView("view-dashboard");
+            loadDashboard();
+          });
+        document
+          .getElementById("back-to-dashboard-from-admin")
+          .addEventListener("click", () => {
+            showView("view-dashboard");
+            loadDashboard();
+          });
 
         // ---------- dynamic form ----------
 
@@ -1160,7 +1227,9 @@
           formTypeTag.textContent = "";
           formArea.innerHTML = "<p>Memuat form&hellip;</p>";
           try {
-            const res = await fetch(`/admin/letter-types/${encodeURIComponent(slug)}`);
+            const res = await fetch(
+              `/admin/letter-types/${encodeURIComponent(slug)}`,
+            );
             if (!res.ok) throw new Error("Gagal memuat jenis surat.");
             currentLetterType = await res.json();
             formTypeTag.textContent = `Jenis surat: ${currentLetterType.name}`;
@@ -1275,14 +1344,23 @@
           `;
 
           // fill in label texts safely (avoids HTML-escaping admin-typed labels)
-          formArea.querySelectorAll(".field-label-text[data-label-for]").forEach((span) => {
-            const id = span.getAttribute("data-label-for");
-            const field = batchFields.find((f) => `field_${f.field_key}` === id);
-            const label = document.createElement("label");
-            label.setAttribute("for", id);
-            label.textContent = id === "tanggal_surat" ? "Tanggal Surat" : field ? field.label : "";
-            span.replaceWith(label);
-          });
+          formArea
+            .querySelectorAll(".field-label-text[data-label-for]")
+            .forEach((span) => {
+              const id = span.getAttribute("data-label-for");
+              const field = batchFields.find(
+                (f) => `field_${f.field_key}` === id,
+              );
+              const label = document.createElement("label");
+              label.setAttribute("for", id);
+              label.textContent =
+                id === "tanggal_surat"
+                  ? "Tanggal Surat"
+                  : field
+                    ? field.label
+                    : "";
+              span.replaceWith(label);
+            });
 
           setupDateField("tanggal_surat");
           batchFields
@@ -1303,11 +1381,16 @@
           let draggedLampiranRow = null;
 
           function updateLampiranNumbers() {
-            lampiranList.querySelectorAll(".lampiran-row").forEach((row, index) => {
-              const order = row.querySelector(".lampiran-order");
-              order.textContent = index + 1;
-              order.setAttribute("aria-label", `Urutan lampiran ${index + 1}`);
-            });
+            lampiranList
+              .querySelectorAll(".lampiran-row")
+              .forEach((row, index) => {
+                const order = row.querySelector(".lampiran-order");
+                order.textContent = index + 1;
+                order.setAttribute(
+                  "aria-label",
+                  `Urutan lampiran ${index + 1}`,
+                );
+              });
           }
 
           lampiranList.addEventListener("dragover", (event) => {
@@ -1316,7 +1399,8 @@
             const targetRow = event.target.closest(".lampiran-row");
             if (!targetRow || targetRow === draggedLampiranRow) return;
             const targetMiddle =
-              targetRow.getBoundingClientRect().top + targetRow.getBoundingClientRect().height / 2;
+              targetRow.getBoundingClientRect().top +
+              targetRow.getBoundingClientRect().height / 2;
             lampiranList.insertBefore(
               draggedLampiranRow,
               event.clientY < targetMiddle ? targetRow : targetRow.nextSibling,
@@ -1372,7 +1456,9 @@
             updateStampState();
           }
 
-          document.getElementById("add-lampiran").addEventListener("click", addLampiranRow);
+          document
+            .getElementById("add-lampiran")
+            .addEventListener("click", addLampiranRow);
           addLampiranRow();
         }
 
@@ -1382,11 +1468,16 @@
           let recipientRowCount = 0;
 
           function updateRecipientNumbers() {
-            recipientList.querySelectorAll(".recipient-row").forEach((row, index) => {
-              const order = row.querySelector(".recipient-order");
-              order.textContent = index + 1;
-              order.setAttribute("aria-label", `Urutan penerima ${index + 1}`);
-            });
+            recipientList
+              .querySelectorAll(".recipient-row")
+              .forEach((row, index) => {
+                const order = row.querySelector(".recipient-order");
+                order.textContent = index + 1;
+                order.setAttribute(
+                  "aria-label",
+                  `Urutan penerima ${index + 1}`,
+                );
+              });
           }
 
           function addRecipientRow() {
@@ -1407,7 +1498,11 @@
 
               if (field.field_type === "date") {
                 const temp = document.createElement("div");
-                temp.innerHTML = dateFieldMarkup(inputId, field.label, field.required);
+                temp.innerHTML = dateFieldMarkup(
+                  inputId,
+                  field.label,
+                  field.required,
+                );
                 const fieldDiv = temp.firstElementChild;
                 const lbl = document.createElement("label");
                 lbl.setAttribute("for", inputId);
@@ -1454,7 +1549,9 @@
             updateStampState();
           }
 
-          document.getElementById("add-recipient").addEventListener("click", addRecipientRow);
+          document
+            .getElementById("add-recipient")
+            .addEventListener("click", addRecipientRow);
           addRecipientRow();
 
           // mode toggle (list vs csv)
@@ -1463,13 +1560,16 @@
           const modeList = document.getElementById("mode-list");
           const modeCsv = document.getElementById("mode-csv");
           const csvColumnsHint = document.getElementById("csv-columns-hint");
-          csvColumnsHint.textContent = recipientFields.map((f) => f.field_key).join(", ");
+          csvColumnsHint.textContent = recipientFields
+            .map((f) => f.field_key)
+            .join(", ");
           if (recipientFields.some((f) => f.field_type === "date")) {
             const dateNote = document.createElement("small");
             dateNote.className = "field-hint";
             dateNote.style.display = "block";
             dateNote.style.marginTop = "4px";
-            dateNote.textContent = "Untuk kolom bertipe tanggal, isi dengan format DD-MM-YYYY (mis. 22-08-2026).";
+            dateNote.textContent =
+              "Untuk kolom bertipe tanggal, isi dengan format DD-MM-YYYY (mis. 22-08-2026).";
             modeCsv.querySelector(".csv-hint").after(dateNote);
           }
 
@@ -1478,30 +1578,40 @@
               modeButtons.forEach((b) => b.classList.remove("active"));
               btn.classList.add("active");
               recipientsMode = btn.dataset.mode;
-              modeList.style.display = recipientsMode === "list" ? "block" : "none";
-              modeCsv.style.display = recipientsMode === "csv" ? "block" : "none";
+              modeList.style.display =
+                recipientsMode === "list" ? "block" : "none";
+              modeCsv.style.display =
+                recipientsMode === "csv" ? "block" : "none";
 
               const isListMode = recipientsMode === "list";
-              recipientList.querySelectorAll("[data-field-key]").forEach((el) => {
-                el.required = isListMode && el.dataset.required === "true";
-              });
+              recipientList
+                .querySelectorAll("[data-field-key]")
+                .forEach((el) => {
+                  el.required = isListMode && el.dataset.required === "true";
+                });
               document.getElementById("recipients_csv").required = !isListMode;
 
               updateStampState();
             });
           });
-          document.getElementById("recipients_csv").addEventListener("change", updateStampState);
-          document.getElementById("download-template").addEventListener("click", (e) => {
-            e.preventDefault();
-            const header = recipientFields.map((f) => f.field_key).join(",");
-            const blob = new Blob([`${header}\n`], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "template_recipients.csv";
-            a.click();
-            URL.revokeObjectURL(url);
-          });
+          document
+            .getElementById("recipients_csv")
+            .addEventListener("change", updateStampState);
+          document
+            .getElementById("download-template")
+            .addEventListener("click", (e) => {
+              e.preventDefault();
+              const header = recipientFields.map((f) => f.field_key).join(",");
+              const blob = new Blob([`${header}\n`], {
+                type: "text/csv;charset=utf-8;",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "template_recipients.csv";
+              a.click();
+              URL.revokeObjectURL(url);
+            });
 
           formArea.dataset.recipientsMode = recipientsMode;
           formArea._getRecipientsMode = () => recipientsMode;
@@ -1545,7 +1655,8 @@
             progressFill.style.width = "0%";
             progressLabel.textContent = "";
 
-            const lampiranJudulEls = document.querySelectorAll(".lampiran-judul");
+            const lampiranJudulEls =
+              document.querySelectorAll(".lampiran-judul");
             const lampiranFileEls = document.querySelectorAll(".lampiran-file");
             const lampirans = [];
             const lampiranFiles = [];
@@ -1557,11 +1668,15 @@
             const invalidLampiran = lampiranFiles.find(
               (file) =>
                 !file ||
-                (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".pdf")) ||
+                (!file.type.includes("pdf") &&
+                  !file.name.toLowerCase().endsWith(".pdf")) ||
                 file.size > 10 * 1024 * 1024,
             );
             if (invalidLampiran) {
-              setStatus("error", "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.");
+              setStatus(
+                "error",
+                "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.",
+              );
               return;
             }
 
@@ -1582,24 +1697,33 @@
 
             const formData = new FormData();
             formData.append("batch_info", JSON.stringify(batchInfo));
-            lampiranFiles.forEach((file) => formData.append("lampiran_files", file));
+            lampiranFiles.forEach((file) =>
+              formData.append("lampiran_files", file),
+            );
 
-            const recipientsMode = formArea._getRecipientsMode ? formArea._getRecipientsMode() : "list";
+            const recipientsMode = formArea._getRecipientsMode
+              ? formArea._getRecipientsMode()
+              : "list";
             formData.append("recipients_mode", recipientsMode);
 
             if (recipientsMode === "list") {
               const recipients = [];
-              document.querySelectorAll("#recipient-list .recipient-row").forEach((row) => {
-                const rec = {};
-                recipientFields.forEach((f) => {
-                  const el = row.querySelector(`[data-field-key="${f.field_key}"]`);
-                  rec[f.field_key] = el ? el.value : "";
+              document
+                .querySelectorAll("#recipient-list .recipient-row")
+                .forEach((row) => {
+                  const rec = {};
+                  recipientFields.forEach((f) => {
+                    const el = row.querySelector(
+                      `[data-field-key="${f.field_key}"]`,
+                    );
+                    rec[f.field_key] = el ? el.value : "";
+                  });
+                  recipients.push(rec);
                 });
-                recipients.push(rec);
-              });
               formData.append("recipients_json", JSON.stringify(recipients));
             } else {
-              const csvFile = document.getElementById("recipients_csv").files[0];
+              const csvFile =
+                document.getElementById("recipients_csv").files[0];
               if (!csvFile) {
                 setStatus("error", "Pilih file CSV terlebih dahulu.");
                 return;
@@ -1611,10 +1735,13 @@
             setStatus("loading", "Mengirim data ke server…");
 
             try {
-              const response = await fetch(`/generate/${encodeURIComponent(currentLetterType.slug)}`, {
-                method: "POST",
-                body: formData,
-              });
+              const response = await fetch(
+                `/generate/${encodeURIComponent(currentLetterType.slug)}`,
+                {
+                  method: "POST",
+                  body: formData,
+                },
+              );
 
               if (!response.ok) {
                 let detail = "Terjadi kesalahan saat memproses dokumen.";
@@ -1636,7 +1763,9 @@
 
               const pollInterval = setInterval(async () => {
                 try {
-                  const statusRes = await fetch(`/generate/jobs/${job_id}/status`);
+                  const statusRes = await fetch(
+                    `/generate/jobs/${job_id}/status`,
+                  );
                   if (!statusRes.ok) {
                     clearInterval(pollInterval);
                     setStatus("error", "Gagal memeriksa status proses.");
@@ -1644,7 +1773,10 @@
                     return;
                   }
                   const jobStatus = await statusRes.json();
-                  const pct = jobStatus.total > 0 ? Math.round((jobStatus.current / jobStatus.total) * 100) : 0;
+                  const pct =
+                    jobStatus.total > 0
+                      ? Math.round((jobStatus.current / jobStatus.total) * 100)
+                      : 0;
                   progressFill.style.width = pct + "%";
                   progressLabel.textContent = `${jobStatus.current}/${jobStatus.total} dokumen selesai`;
 
@@ -1652,7 +1784,9 @@
                     clearInterval(pollInterval);
                     setStatus("loading", "Menyiapkan unduhan…");
 
-                    const downloadRes = await fetch(`/generate/jobs/${job_id}/download`);
+                    const downloadRes = await fetch(
+                      `/generate/jobs/${job_id}/download`,
+                    );
                     if (!downloadRes.ok) {
                       setStatus("error", "Gagal mengunduh hasil.");
                       submitBtn.disabled = false;
@@ -1666,21 +1800,34 @@
                     a.click();
                     URL.revokeObjectURL(url);
 
-                    setStatus("success", "Dokumen berhasil dibuat dan diunduh.");
+                    setStatus(
+                      "success",
+                      "Dokumen berhasil dibuat dan diunduh.",
+                    );
                     submitBtn.disabled = false;
                   } else if (jobStatus.status === "error") {
                     clearInterval(pollInterval);
-                    setStatus("error", jobStatus.error || "Terjadi kesalahan saat memproses dokumen.");
+                    setStatus(
+                      "error",
+                      jobStatus.error ||
+                        "Terjadi kesalahan saat memproses dokumen.",
+                    );
                     submitBtn.disabled = false;
                   }
                 } catch (err) {
                   clearInterval(pollInterval);
-                  setStatus("error", "Tidak dapat terhubung ke server: " + err.message);
+                  setStatus(
+                    "error",
+                    "Tidak dapat terhubung ke server: " + err.message,
+                  );
                   submitBtn.disabled = false;
                 }
               }, 1200);
             } catch (err) {
-              setStatus("error", "Tidak dapat terhubung ke server: " + err.message);
+              setStatus(
+                "error",
+                "Tidak dapat terhubung ke server: " + err.message,
+              );
               submitBtn.disabled = false;
             }
           });
@@ -1722,38 +1869,51 @@
           showView("view-admin-add");
         }
 
-        document.getElementById("admin-template-file").addEventListener("change", (e) => {
-          selectedTemplateFile = e.target.files[0] || null;
-        });
+        document
+          .getElementById("admin-template-file")
+          .addEventListener("change", (e) => {
+            selectedTemplateFile = e.target.files[0] || null;
+          });
 
-        document.getElementById("admin-inspect-btn").addEventListener("click", async () => {
-          const statusEl = document.getElementById("admin-inspect-status");
-          if (!selectedTemplateFile) {
-            statusEl.className = "status show error";
-            statusEl.textContent = "Pilih file template docx terlebih dahulu.";
-            return;
-          }
+        document
+          .getElementById("admin-inspect-btn")
+          .addEventListener("click", async () => {
+            const statusEl = document.getElementById("admin-inspect-status");
+            if (!selectedTemplateFile) {
+              statusEl.className = "status show error";
+              statusEl.textContent =
+                "Pilih file template docx terlebih dahulu.";
+              return;
+            }
 
-          statusEl.className = "status show loading";
-          statusEl.textContent = "Mendeteksi variabel…";
+            statusEl.className = "status show loading";
+            statusEl.textContent = "Mendeteksi variabel…";
 
-          try {
-            const formData = new FormData();
-            formData.append("template_file", selectedTemplateFile);
-            const res = await fetch("/admin/letter-types/inspect", { method: "POST", body: formData });
-            const data = await res.json();
-            if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Gagal mendeteksi variabel.");
+            try {
+              const formData = new FormData();
+              formData.append("template_file", selectedTemplateFile);
+              const res = await fetch("/admin/letter-types/inspect", {
+                method: "POST",
+                body: formData,
+              });
+              const data = await res.json();
+              if (!res.ok)
+                throw new Error(
+                  typeof data.detail === "string"
+                    ? data.detail
+                    : "Gagal mendeteksi variabel.",
+                );
 
-            detectedVariables = data.detected_variables || [];
-            statusEl.className = "status";
-            statusEl.textContent = "";
-            renderAdminFieldsStep(detectedVariables);
-            document.getElementById("admin-step-2").style.display = "block";
-          } catch (err) {
-            statusEl.className = "status show error";
-            statusEl.textContent = err.message;
-          }
-        });
+              detectedVariables = data.detected_variables || [];
+              statusEl.className = "status";
+              statusEl.textContent = "";
+              renderAdminFieldsStep(detectedVariables);
+              document.getElementById("admin-step-2").style.display = "block";
+            } catch (err) {
+              statusEl.className = "status show error";
+              statusEl.textContent = err.message;
+            }
+          });
 
         function humanizeKey(key) {
           return key
@@ -1765,7 +1925,8 @@
         function renderAdminFieldsStep(variables) {
           const list = document.getElementById("admin-fields-list");
           list.innerHTML = "";
-          document.getElementById("admin-no-vars-note").style.display = variables.length === 0 ? "block" : "none";
+          document.getElementById("admin-no-vars-note").style.display =
+            variables.length === 0 ? "block" : "none";
 
           variables.forEach((key) => {
             const row = document.createElement("div");
@@ -1800,7 +1961,10 @@
 
             const levelCol = document.createElement("div");
             levelCol.className = "field";
-            const levelLabel = setText(document.createElement("label"), "Level");
+            const levelLabel = setText(
+              document.createElement("label"),
+              "Level",
+            );
             const levelSelect = document.createElement("select");
             levelSelect.className = "admin-field-level-select";
             [
@@ -1818,7 +1982,10 @@
             requiredCheckbox.type = "checkbox";
             requiredCheckbox.className = "admin-field-required-checkbox";
             requiredCheckbox.checked = true;
-            requiredCol.append(requiredCheckbox, document.createTextNode("Wajib"));
+            requiredCol.append(
+              requiredCheckbox,
+              document.createTextNode("Wajib"),
+            );
 
             row.append(keyCol, typeCol, levelCol, requiredCol);
             list.appendChild(row);
@@ -1827,65 +1994,85 @@
 
         document.getElementById("admin-name").addEventListener("input", (e) => {
           if (!slugManuallyEdited) {
-            document.getElementById("admin-slug").value = slugify(e.target.value);
+            document.getElementById("admin-slug").value = slugify(
+              e.target.value,
+            );
           }
         });
         document.getElementById("admin-slug").addEventListener("input", () => {
           slugManuallyEdited = true;
         });
 
-        document.getElementById("admin-submit-btn").addEventListener("click", async () => {
-          const statusEl = document.getElementById("admin-submit-status");
-          const name = document.getElementById("admin-name").value.trim();
-          const slug = document.getElementById("admin-slug").value.trim();
+        document
+          .getElementById("admin-submit-btn")
+          .addEventListener("click", async () => {
+            const statusEl = document.getElementById("admin-submit-status");
+            const name = document.getElementById("admin-name").value.trim();
+            const slug = document.getElementById("admin-slug").value.trim();
 
-          if (!name || !slug) {
-            statusEl.className = "status show error";
-            statusEl.textContent = "Nama dan slug jenis surat wajib diisi.";
-            return;
-          }
-          if (!selectedTemplateFile) {
-            statusEl.className = "status show error";
-            statusEl.textContent = "Template docx tidak ditemukan, silakan upload ulang di langkah 1.";
-            return;
-          }
+            if (!name || !slug) {
+              statusEl.className = "status show error";
+              statusEl.textContent = "Nama dan slug jenis surat wajib diisi.";
+              return;
+            }
+            if (!selectedTemplateFile) {
+              statusEl.className = "status show error";
+              statusEl.textContent =
+                "Template docx tidak ditemukan, silakan upload ulang di langkah 1.";
+              return;
+            }
 
-          const fieldsConfig = [];
-          document.querySelectorAll("#admin-fields-list .admin-field-row").forEach((row) => {
-            fieldsConfig.push({
-              field_key: row.dataset.fieldKey,
-              label: row.querySelector(".admin-field-label-input").value.trim() || row.dataset.fieldKey,
-              field_type: row.querySelector(".admin-field-type-select").value,
-              level: row.querySelector(".admin-field-level-select").value,
-              required: row.querySelector(".admin-field-required-checkbox").checked,
-            });
+            const fieldsConfig = [];
+            document
+              .querySelectorAll("#admin-fields-list .admin-field-row")
+              .forEach((row) => {
+                fieldsConfig.push({
+                  field_key: row.dataset.fieldKey,
+                  label:
+                    row
+                      .querySelector(".admin-field-label-input")
+                      .value.trim() || row.dataset.fieldKey,
+                  field_type: row.querySelector(".admin-field-type-select")
+                    .value,
+                  level: row.querySelector(".admin-field-level-select").value,
+                  required: row.querySelector(".admin-field-required-checkbox")
+                    .checked,
+                });
+              });
+
+            statusEl.className = "status show loading";
+            statusEl.textContent = "Menyimpan jenis surat…";
+
+            try {
+              const formData = new FormData();
+              formData.append("name", name);
+              formData.append("slug", slug);
+              formData.append("fields_config", JSON.stringify(fieldsConfig));
+              formData.append("template_file", selectedTemplateFile);
+
+              const res = await fetch("/admin/letter-types", {
+                method: "POST",
+                body: formData,
+              });
+              const data = await res.json();
+              if (!res.ok)
+                throw new Error(
+                  typeof data.detail === "string"
+                    ? data.detail
+                    : "Gagal menyimpan jenis surat.",
+                );
+
+              statusEl.className = "status show success";
+              statusEl.textContent = `Jenis surat "${data.name}" berhasil dibuat.`;
+              setTimeout(() => {
+                showView("view-dashboard");
+                loadDashboard();
+              }, 900);
+            } catch (err) {
+              statusEl.className = "status show error";
+              statusEl.textContent = err.message;
+            }
           });
-
-          statusEl.className = "status show loading";
-          statusEl.textContent = "Menyimpan jenis surat…";
-
-          try {
-            const formData = new FormData();
-            formData.append("name", name);
-            formData.append("slug", slug);
-            formData.append("fields_config", JSON.stringify(fieldsConfig));
-            formData.append("template_file", selectedTemplateFile);
-
-            const res = await fetch("/admin/letter-types", { method: "POST", body: formData });
-            const data = await res.json();
-            if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Gagal menyimpan jenis surat.");
-
-            statusEl.className = "status show success";
-            statusEl.textContent = `Jenis surat "${data.name}" berhasil dibuat.`;
-            setTimeout(() => {
-              showView("view-dashboard");
-              loadDashboard();
-            }, 900);
-          } catch (err) {
-            statusEl.className = "status show error";
-            statusEl.textContent = err.message;
-          }
-        });
 
         // ---------- init ----------
         loadDashboard();
