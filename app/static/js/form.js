@@ -127,6 +127,7 @@ function renderDynamicForm(letterType) {
         <div class="step-head"><span class="step-num"></span><h2>Buat Dokumen</h2></div>
         <div class="submit-area">
           <div class="stamp" id="stamp">SIAP<br>DIKIRIM</div>
+          <button type="button" class="preview-btn" id="preview-btn" disabled>Preview Penerima Pertama</button>
           <button type="submit" class="submit" id="submit-btn">Generate &amp; Unduh ZIP</button>
         </div>
         <div class="status" id="status" role="status" aria-live="polite"></div>
@@ -411,11 +412,91 @@ function setupRecipientSection(recipientFields) {
     });
 }
 
+/**
+ * Kumpulkan seluruh isian form (info surat, lampiran, penerima) jadi satu
+ * FormData siap kirim ke endpoint generate maupun preview — keduanya
+ * menerima payload yang sama persis.
+ *
+ * Mengembalikan { formData } kalau berhasil, atau { error } kalau ada isian
+ * yang tidak valid (mis. lampiran bukan PDF, CSV belum dipilih). Pemanggil
+ * cukup cek salah satu field yang ada.
+ */
+function collectFormData(batchFields, recipientFields) {
+  const lampiranJudulEls = document.querySelectorAll(".lampiran-judul");
+  const lampiranFileEls = document.querySelectorAll(".lampiran-file");
+  const lampirans = [];
+  const lampiranFiles = [];
+  lampiranJudulEls.forEach((el, i) => {
+    lampirans.push({ judul: el.value });
+    lampiranFiles.push(lampiranFileEls[i].files[0]);
+  });
+
+  const invalidLampiran = lampiranFiles.find(
+    (file) =>
+      !file ||
+      (!file.type.includes("pdf") &&
+        !file.name.toLowerCase().endsWith(".pdf")) ||
+      file.size > 10 * 1024 * 1024,
+  );
+  if (invalidLampiran) {
+    return {
+      error: "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.",
+    };
+  }
+
+  const customFields = {};
+  batchFields.forEach((f) => {
+    const el = document.getElementById(`field_${f.field_key}`);
+    customFields[f.field_key] = el ? el.value : "";
+  });
+
+  const batchInfo = {
+    nomor_surat: document.getElementById("nomor_surat").value,
+    tempat_surat: document.getElementById("tempat_surat").value,
+    tanggal_surat: document.getElementById("tanggal_surat").value,
+    perihal_surat: document.getElementById("perihal_surat").value,
+    lampirans: lampirans,
+    custom_fields: customFields,
+  };
+
+  const formData = new FormData();
+  formData.append("batch_info", JSON.stringify(batchInfo));
+  lampiranFiles.forEach((file) => formData.append("lampiran_files", file));
+
+  formData.append("recipients_mode", recipientsMode);
+
+  if (recipientsMode === "list") {
+    const recipients = [];
+    document
+      .querySelectorAll("#recipient-list .recipient-row")
+      .forEach((row) => {
+        const rec = {};
+        recipientFields.forEach((f) => {
+          const el = row.querySelector(`[data-field-key="${f.field_key}"]`);
+          rec[f.field_key] = el ? el.value : "";
+        });
+        recipients.push(rec);
+      });
+    formData.append("recipients_json", JSON.stringify(recipients));
+  } else {
+    const csvFile = document.getElementById("recipients_csv").files[0];
+    if (!csvFile) {
+      return { error: "Pilih file CSV terlebih dahulu." };
+    }
+    formData.append("recipients_csv", csvFile);
+  }
+
+  return { formData };
+}
+
 function updateStampState() {
   const form = document.getElementById("surat-form");
   const stampEl = document.getElementById("stamp");
+  const previewBtn = document.getElementById("preview-btn");
   if (!form || !stampEl) return;
-  stampEl.classList.toggle("ready", form.checkValidity());
+  const isValid = form.checkValidity();
+  stampEl.classList.toggle("ready", isValid);
+  if (previewBtn) previewBtn.disabled = !isValid;
 }
 
 function setupSubmitHandler(batchFields, recipientFields) {
@@ -449,77 +530,10 @@ function setupSubmitHandler(batchFields, recipientFields) {
     progressFill.style.width = "0%";
     progressLabel.textContent = "";
 
-    const lampiranJudulEls =
-      document.querySelectorAll(".lampiran-judul");
-    const lampiranFileEls = document.querySelectorAll(".lampiran-file");
-    const lampirans = [];
-    const lampiranFiles = [];
-    lampiranJudulEls.forEach((el, i) => {
-      lampirans.push({ judul: el.value });
-      lampiranFiles.push(lampiranFileEls[i].files[0]);
-    });
-
-    const invalidLampiran = lampiranFiles.find(
-      (file) =>
-        !file ||
-        (!file.type.includes("pdf") &&
-          !file.name.toLowerCase().endsWith(".pdf")) ||
-        file.size > 10 * 1024 * 1024,
-    );
-    if (invalidLampiran) {
-      setStatus(
-        "error",
-        "Setiap lampiran harus berupa PDF dengan ukuran maksimal 10 MB.",
-      );
+    const { formData, error } = collectFormData(batchFields, recipientFields);
+    if (error) {
+      setStatus("error", error);
       return;
-    }
-
-    const customFields = {};
-    batchFields.forEach((f) => {
-      const el = document.getElementById(`field_${f.field_key}`);
-      customFields[f.field_key] = el ? el.value : "";
-    });
-
-    const batchInfo = {
-      nomor_surat: document.getElementById("nomor_surat").value,
-      tempat_surat: document.getElementById("tempat_surat").value,
-      tanggal_surat: document.getElementById("tanggal_surat").value,
-      perihal_surat: document.getElementById("perihal_surat").value,
-      lampirans: lampirans,
-      custom_fields: customFields,
-    };
-
-    const formData = new FormData();
-    formData.append("batch_info", JSON.stringify(batchInfo));
-    lampiranFiles.forEach((file) =>
-      formData.append("lampiran_files", file),
-    );
-
-    formData.append("recipients_mode", recipientsMode);
-
-    if (recipientsMode === "list") {
-      const recipients = [];
-      document
-        .querySelectorAll("#recipient-list .recipient-row")
-        .forEach((row) => {
-          const rec = {};
-          recipientFields.forEach((f) => {
-            const el = row.querySelector(
-              `[data-field-key="${f.field_key}"]`,
-            );
-            rec[f.field_key] = el ? el.value : "";
-          });
-          recipients.push(rec);
-        });
-      formData.append("recipients_json", JSON.stringify(recipients));
-    } else {
-      const csvFile =
-        document.getElementById("recipients_csv").files[0];
-      if (!csvFile) {
-        setStatus("error", "Pilih file CSV terlebih dahulu.");
-        return;
-      }
-      formData.append("recipients_csv", csvFile);
     }
 
     submitBtn.disabled = true;
@@ -619,6 +633,67 @@ function setupSubmitHandler(batchFields, recipientFields) {
         "error",
         "Tidak dapat terhubung ke server: " + err.message,
       );
+      submitBtn.disabled = false;
+    }
+  });
+
+  const previewBtn = document.getElementById("preview-btn");
+  previewBtn.addEventListener("click", async () => {
+    // Tombol sudah di-disable lewat updateStampState kalau form belum valid,
+    // tapi dicek lagi di sini untuk jaga-jaga (mis. browser lama yang tidak
+    // menghormati atribut disabled secara konsisten).
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const { formData, error } = collectFormData(batchFields, recipientFields);
+    if (error) {
+      setStatus("error", error);
+      return;
+    }
+
+    previewBtn.disabled = true;
+    submitBtn.disabled = true;
+    clearStatus();
+    setStatus("loading", "Menyiapkan pratinjau…");
+
+    try {
+      const response = await fetch(
+        `/generate/${encodeURIComponent(currentLetterType.slug)}/preview`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        let detail = "Gagal membuat pratinjau.";
+        try {
+          const errJson = await response.json();
+          detail = errorDetailToMessage(errJson.detail);
+        } catch (_) {
+          /* biarkan pesan default */
+        }
+        setStatus("error", detail);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      // Ditunda, bukan langsung, supaya tab baru sempat memuat PDF-nya
+      // sebelum object URL-nya dicabut.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      clearStatus();
+    } catch (err) {
+      setStatus(
+        "error",
+        "Tidak dapat terhubung ke server: " + err.message,
+      );
+    } finally {
+      previewBtn.disabled = !form.checkValidity();
       submitBtn.disabled = false;
     }
   });

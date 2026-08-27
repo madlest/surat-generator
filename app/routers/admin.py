@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session, col, select
 
 from app.core.database import engine
@@ -467,3 +468,38 @@ def get_letter_type(slug: str):
             "name": letter_type.name,
             "fields": fields,
         }
+
+
+@router.get("/{slug}/template")
+def download_current_template(slug: str):
+    """
+    Unduh file template .docx yang sedang aktif untuk satu jenis surat —
+    supaya admin punya salinan yang persis dipakai sistem saat ini sebagai
+    acuan/basis kalau mau merevisi (mis. nambah placeholder baru tanpa
+    kehilangan format asli yang sudah ada).
+    """
+    with Session(engine) as session:
+        letter_type = session.exec(
+            select(LetterType).where(LetterType.slug == slug, col(LetterType.deleted_at).is_(None))
+        ).first()
+    if not letter_type:
+        raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
+
+    template_path = Path(letter_type.template_path)
+    if not template_path.exists():
+        # Semestinya tidak pernah terjadi selama app/templates/uploaded/ tidak
+        # diutak-atik manual di luar aplikasi, tapi dicek eksplisit supaya
+        # errornya jelas ketimbang FileResponse gagal diam-diam.
+        raise HTTPException(
+            status_code=404,
+            detail="Berkas template tidak ditemukan di server. Hubungi pengembang.",
+        )
+
+    # Nama unduhan pakai nama jenis surat (bukan slug/nama file internal),
+    # supaya langsung jelas isinya apa saat admin buka folder unduhan.
+    download_filename = f"template_{slug}.docx"
+    return FileResponse(
+        path=template_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=download_filename,
+    )

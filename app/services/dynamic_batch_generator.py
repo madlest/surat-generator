@@ -150,3 +150,59 @@ def generate_batch(
             zf.write(pdf_path, arcname=Path(pdf_path).name)
 
     return zip_path
+
+
+def generate_preview(
+    template_path: str,
+    base_info: dict,
+    custom_batch_values: dict,
+    batch_fields: list[LetterField],
+    recipient_values: dict,
+    recipient_fields: list[LetterField],
+    working_dir: str,
+) -> str:
+    """
+    Generate satu dokumen (cover letter + lampiran tergabung) untuk pratinjau,
+    memakai recipient_values dari satu penerima saja. Tidak ada loop, tidak
+    ada zip — badannya sama seperti satu iterasi di dalam generate_batch(),
+    dipakai supaya preview betul-betul mencerminkan hasil akhir yang akan
+    diunduh.
+
+    base_info: sama seperti pada generate_batch().
+    """
+    working_path = Path(working_dir)
+    working_path.mkdir(parents=True, exist_ok=True)
+
+    lampiran_paths = [item["file_path"] for item in base_info["lampirans"] if item.get("file_path")]
+    missing = [item["judul"] for item in base_info["lampirans"] if not item.get("file_path")]
+    if missing:
+        raise DynamicBatchGenerationError(
+            recipient_index=-1,
+            recipient_label="(pratinjau)",
+            original_error=ValueError(
+                f"Lampiran berikut belum punya file_path terisi: {', '.join(missing)}"
+            ),
+        )
+
+    label = _build_recipient_label(recipient_values, recipient_fields) or "Pratinjau"
+    try:
+        context = build_context(base_info, custom_batch_values, batch_fields, recipient_values, recipient_fields)
+
+        cover_letter_pdf = generate_pdf_from_template(
+            template_path=template_path,
+            context=context,
+            working_dir=str(working_path / "cover_letter"),
+            output_filename_stem="cover_preview",
+        )
+
+        final_pdf_path = str(working_path / "preview.pdf")
+        merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
+
+        return final_pdf_path
+
+    except (DocumentGenerationError, PdfMergeError) as e:
+        raise DynamicBatchGenerationError(
+            recipient_index=1,
+            recipient_label=label,
+            original_error=e,
+        ) from e
