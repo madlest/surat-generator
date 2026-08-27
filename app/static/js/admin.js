@@ -53,6 +53,9 @@ function resetAdminWizard() {
   document.getElementById("admin-inspect-status").textContent = "";
   document.getElementById("admin-submit-status").className = "status";
   document.getElementById("admin-submit-status").textContent = "";
+  // Cuma relevan untuk jenis surat yang sudah punya template tersimpan.
+  document.getElementById("admin-download-template-link").style.display = "none";
+  document.getElementById("admin-download-template-link").href = "#";
 }
 
 /**
@@ -115,6 +118,10 @@ export async function openEditWizard(slug) {
     document.getElementById("admin-slug").value = letterType.slug;
     // Slug yang sudah ada tidak boleh tertimpa otomatis saat nama disunting.
     slugManuallyEdited = true;
+
+    document.getElementById("admin-download-template-link").href =
+      `/admin/letter-types/${encodeURIComponent(letterType.slug)}/template`;
+    document.getElementById("admin-download-template-link").style.display = "flex";
 
     renderAdminFieldsStep(
       (letterType.fields || []).map((f) => f.field_key),
@@ -338,6 +345,7 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     keyLabel.className = "field-key-label";
     keyLabel.setAttribute("for", labelId);
     keyLabel.textContent = `{{ ${key} }}`;
+    keyLabel.title = `{{ ${key} }}`;
     const labelInput = document.createElement("input");
     labelInput.type = "text";
     labelInput.id = labelId;

@@ -477,6 +477,69 @@ input[type="file"] {
   background: var(--teal-tint);
 }
 
+.template-download-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border: 1px solid var(--teal);
+  border-radius: var(--radius);
+  background: var(--teal-tint);
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.template-download-card:hover {
+  background: var(--teal);
+}
+
+.template-download-card:hover .template-download-icon {
+  background: var(--panel);
+  color: var(--teal);
+}
+
+.template-download-card:hover .template-download-text strong,
+.template-download-card:hover .template-download-text small {
+  color: #fff;
+}
+
+.template-download-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.template-download-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.template-download-text strong {
+  font-size: 13.5px;
+  color: var(--teal-dark);
+  font-weight: 700;
+  transition: color 0.15s ease;
+}
+
+.template-download-text small {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  transition: color 0.15s ease;
+}
+
 .mode-toggle {
   display: flex;
   border: 1px solid var(--line-strong);
@@ -661,30 +724,6 @@ button.submit:hover {
 
 button.submit:disabled {
   background: var(--line-strong);
-  cursor: not-allowed;
-}
-
-button.preview-btn {
-  flex: 1;
-  background: none;
-  border: 1px solid var(--teal);
-  color: var(--teal-dark);
-  padding: 15px 20px;
-  font-family: "Inter", sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  letter-spacing: 0.01em;
-}
-
-button.preview-btn:hover:not(:disabled) {
-  background: var(--teal-tint);
-}
-
-button.preview-btn:disabled {
-  border-color: var(--line-strong);
-  color: var(--ink-soft);
   cursor: not-allowed;
 }
 
@@ -923,7 +962,7 @@ button.preview-btn:disabled {
 /* Admin wizard */
 .admin-field-row {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 0.9fr auto;
+  grid-template-columns: auto minmax(160px, 1.3fr) minmax(100px, 1fr) minmax(110px, 0.9fr) auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -933,15 +972,29 @@ button.preview-btn:disabled {
   margin-bottom: 10px;
 }
 
+.admin-field-row.dragging {
+  opacity: 0.55;
+}
+
 /* Elemen ini kini <label> (agar tertaut ke input-nya), bukan <span> lagi, jadi
    gaya label global perlu dinetralkan supaya tampilannya tidak berubah. */
 .admin-field-row .field-key-label {
+  display: block;
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
   color: var(--ink-soft);
   font-weight: 400;
   text-transform: none;
   letter-spacing: normal;
+  /* Field key panjang (mis. "tahun_akademik") dulu wrap ugly jadi 2 baris —
+     bahkan sampai memisah tanda "}}" sendirian di baris kedua — dan bikin
+     tinggi baris tidak konsisten antar field (drag-handle & checkbox Wajib
+     jadi kelihatan tidak sejajar karena align-items: end). Dipotong rapi
+     dengan ellipsis di sini; teks lengkapnya tetap ada lewat atribut title
+     (muncul saat hover), diisi dari admin.js. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-required-toggle {
@@ -1015,6 +1068,20 @@ button.preview-btn:disabled {
 
   .admin-field-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-field-row .drag-handle {
+    justify-self: start;
+  }
+
+  .template-download-card {
+    align-items: flex-start;
+  }
+
+  .template-download-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
   }
 
   .step {
