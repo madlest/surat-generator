@@ -2,12 +2,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.core.database import init_db
 from app.routers import admin, generate
 
 app = FastAPI(title="Surat Generator")
-
-init_db()
 
 app.include_router(admin.router)
 app.include_router(generate.router)
