@@ -1,28 +1,33 @@
 # Surat Generator
 
-Platform untuk generate dan batch-process dokumen surat resmi kampus secara otomatis dari template Word ke PDF — menggantikan alur manual mail merge → export PDF → split → gabung lampiran satu per satu.
+Platform untuk membuat dan batch-process dokumen surat resmi kampus dari template Word ke PDF — menggantikan alur manual mail merge → export PDF → split → gabung lampiran satu per satu.
 
-Dikembangkan pertama kali untuk Surat Permohonan Mengajar (SPM) di Fakultas Farmasi, namun **arsitekturnya dirancang agar bisa diperluas untuk jenis surat lain** (surat tugas, surat keterangan, surat undangan, dll) maupun **dipakai oleh fakultas/unit lain** yang punya kebutuhan administrasi surat serupa. Setiap jenis surat berjalan sebagai modul independen (template + skema data + endpoint sendiri), sehingga menambah jenis surat baru tidak memerlukan perubahan pada logic inti (isi template, konversi PDF, penggabungan lampiran, batch processing).
+Awalnya dibangun untuk Surat Permohonan Mengajar (SPM) di Fakultas Farmasi, Universitas Muhammadiyah Banjarmasin. Sejak v1.1.0, aplikasi **tidak lagi terikat ke satu jenis surat**: admin bisa menambahkan jenis surat baru langsung dari dashboard — cukup unggah template `.docx`, tanpa menyentuh kode sama sekali.
 
-Dibangun dengan Python 3.12, FastAPI, dan `docxtpl`, sebagai proyek belajar sekaligus alat bantu administrasi yang berkembang sesuai kebutuhan nyata di lapangan.
+Dibangun dengan Python 3.12 dan FastAPI, sebagai proyek belajar sekaligus alat bantu administrasi yang berkembang mengikuti kebutuhan nyata di lapangan.
+
+**Produksi**: https://surat-generator.duckdns.org/
 
 ## Fitur
 
-- **Generate surat dari template Word** — isi data (nomor surat, tanggal, pihak terkait, perihal, dst) lewat form, hasilnya dokumen PDF sesuai format resmi institusi.
-- **Batch generation** — satu surat, banyak penerima. Input daftar penerima bisa lewat form langsung atau upload CSV; setiap penerima otomatis dapat satu PDF gabungan (surat + lampiran).
-- **Lampiran dinamis** — upload beberapa file lampiran sekaligus (judul + file PDF), otomatis tergabung ke setiap dokumen hasil generate dan tercantum sebagai daftar lampiran di badan surat.
-- **Output dalam ZIP** — semua dokumen hasil batch dibundel jadi satu file ZIP untuk diunduh sekaligus.
-- **Format tanggal Indonesia otomatis** — tanggal ditampilkan dalam format lokal (mis. "21 Agustus 2026") tanpa perlu input manual.
-- **Dirancang untuk berkembang** — logic inti (`services/`) bersifat generik dan tidak terikat ke satu jenis surat; menambah jenis surat baru cukup dengan menambah template docx, skema data (model), dan endpoint baru mengikuti pola yang sudah ada.
+- **Jenis surat dinamis** — admin menambah jenis surat baru lewat wizard: unggah template `.docx`, variabel Jinja di dalamnya terdeteksi otomatis, lalu admin mengatur label, tipe (teks/tanggal/angka), dan level tiap field (`batch` = sekali per surat, `recipient` = per penerima). Jenis surat juga bisa diubah (termasuk ganti slug dan template) atau dihapus.
+- **Hapus lunak & arsip** — jenis surat yang dihapus masuk ke arsip lengkap dengan konfigurasi fieldnya, bisa dipulihkan utuh kapan saja atau dihapus permanen.
+- **Generate & batch generation** — isi data lewat form dinamis atau upload CSV; satu surat bisa dikirim ke banyak penerima sekaligus, dengan progress yang bisa dipantau (polling).
+- **Lampiran dinamis** — gabungkan beberapa file PDF lampiran ke setiap dokumen hasil generate.
+- **Output dalam ZIP** — seluruh dokumen hasil batch dibundel jadi satu file ZIP untuk diunduh sekaligus.
+- **Format tanggal Indonesia** — seragam `DD-MM-YYYY` di seluruh antarmuka, dengan konversi otomatis dari input CSV.
+- **Frontend ringan** — modul ES per fitur (`app/static/js/`), tanpa build step.
 
 ## Tech Stack
 
 - **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.12)
 - **Package manager**: [uv](https://github.com/astral-sh/uv)
+- **Database & ORM**: [SQLModel](https://sqlmodel.tiangolo.com/), migrasi skema dengan [Alembic](https://alembic.sqlalchemy.org/)
 - **Template engine dokumen**: [docxtpl](https://docxtpl.readthedocs.io/) (Jinja2 untuk file `.docx`)
 - **Konversi DOCX → PDF**: [LibreOffice](https://www.libreoffice.org/) (headless mode)
 - **Penggabungan PDF**: [pypdf](https://pypdf.readthedocs.io/)
-- **Validasi data**: [Pydantic](https://docs.pydantic.dev/)
+- **Validasi & konfigurasi**: [Pydantic](https://docs.pydantic.dev/) / [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+- **Frontend**: HTML/CSS/JS statis, tanpa framework atau build step
 
 ## Prasyarat
 
@@ -32,7 +37,7 @@ Dibangun dengan Python 3.12, FastAPI, dan `docxtpl`, sebagai proyek belajar seka
   ```bash
   sudo apt install libreoffice
   ```
-- Locale Bahasa Indonesia terinstall di sistem (dibutuhkan untuk format tanggal)
+- Locale Bahasa Indonesia terinstall di sistem (aplikasi akan menolak jalan tanpanya)
   ```bash
   sudo locale-gen id_ID.UTF-8
   sudo update-locale
@@ -41,11 +46,14 @@ Dibangun dengan Python 3.12, FastAPI, dan `docxtpl`, sebagai proyek belajar seka
 ## Instalasi
 
 ```bash
-git clone <url-repo-ini>
+git clone https://github.com/madlest/surat-generator.git
 cd surat-generator
 
 # install dependency (otomatis membuat virtual environment)
 uv sync
+
+# siapkan skema database
+uv run alembic upgrade head
 ```
 
 ## Menjalankan Aplikasi
@@ -54,34 +62,46 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-Aplikasi akan berjalan di `http://localhost:8000`. Dokumentasi API interaktif (Swagger UI) tersedia di `http://localhost:8000/docs`.
+Aplikasi berjalan di `http://localhost:8000`. Dokumentasi API interaktif (Swagger UI) tersedia di `http://localhost:8000/docs`.
 
 ## Struktur Proyek
 
 ```
 app/
-├── main.py              # entry point FastAPI
-├── core/                # konfigurasi, locale, formatter
-├── models/               # skema data (Pydantic), satu file per jenis surat
-├── routers/              # endpoint HTTP, satu file per jenis surat
-├── services/             # logic inti generik: parsing, generate dokumen, gabung PDF, batch
-├── templates/            # file template .docx, satu file per jenis surat
-└── static/               # (opsional) frontend sederhana
+├── main.py                  # entry point FastAPI
+├── core/                    # konfigurasi, koneksi database, locale, formatter
+├── models/                  # skema data (SQLModel): LetterType, LetterField
+├── routers/
+│   ├── admin.py              # CRUD jenis surat, wizard deteksi field, arsip
+│   └── generate.py           # generate & batch generate surat
+├── services/                 # logic inti: inspeksi template, parsing field,
+│                              #   generate dokumen, gabung PDF, batch, job status
+├── templates/uploaded/       # template .docx aktif (di-gitignore, jangan dihapus)
+└── static/
+    ├── index.html
+    ├── css/style.css
+    └── js/                    # modul ES per fitur (admin, form, dashboard, archive, dst)
+
+migrations/                  # migrasi skema database (Alembic)
 ```
 
 ## Menambahkan Jenis Surat Baru
 
-Proyek ini sengaja dirancang agar satu jenis surat = satu "paket" (template + model + router) yang berdiri sendiri, sementara logic inti di `services/` dipakai bersama oleh semua jenis surat. Untuk menambah jenis surat baru:
+Sejak v1.1.0, menambah jenis surat **tidak lagi memerlukan perubahan kode**. Semua dilakukan lewat dashboard admin:
 
-1. Siapkan file template `.docx` dengan placeholder `docxtpl` (`{{ }}`), simpan di `templates/`.
-2. Buat skema data (Pydantic model) di `models/`, mewarisi field umum dari `SuratBase` (nomor surat, tanggal, perihal) dan menambahkan field spesifik jenis surat tersebut.
-3. Buat endpoint baru di `routers/` yang memanggil service generik yang sudah ada (`document_generator`, `pdf_merger`, `batch_generator`) dengan template dan model yang baru dibuat.
+1. Buka wizard "Tambah Jenis Surat" dan unggah file template `.docx` (memakai placeholder Jinja `{{ }}` ala `docxtpl`).
+2. Variabel dalam template terdeteksi otomatis. Untuk tiap variabel, atur label yang ditampilkan, tipe data (teks/tanggal/angka), dan level: `batch` (sekali per surat) atau `recipient` (beda-beda per penerima).
+3. Simpan — jenis surat baru langsung muncul di dashboard dan siap dipakai untuk generate/batch generate.
 
-Logic inti tidak perlu diubah — ini yang membuat proyek tetap scalable untuk kebutuhan surat-menyurat yang terus berkembang, baik di Fakultas Farmasi maupun unit lain yang ingin mengadopsi.
+Jenis surat yang sudah ada juga bisa diubah (termasuk ganti template) lewat wizard yang sama, atau dihapus (masuk arsip, bisa dipulihkan).
 
 ## Status Pengembangan
 
-Proyek ini masih dalam tahap pengembangan aktif sebagai bagian dari proses belajar FastAPI dan otomasi dokumen. Fitur inti (generate dokumen, batch processing, penggabungan lampiran) sudah berfungsi dan teruji; endpoint API dan antarmuka pengguna masih dalam proses penyelesaian.
+**v1.1.0** — dirilis dan berjalan di produksi. Wizard jenis surat dinamis, dashboard, batch generation, lampiran, arsip/hapus lunak, dan migrasi skema database (Alembic) sudah lengkap dan teruji.
+
+**v1.2.0** (dalam pengerjaan) — seret-urutkan (drag-to-reorder) field di wizard admin, supaya urutan field di form generate tidak lagi mengikuti urutan abjad otomatis.
+
+Rencana berikutnya (belum dijadwalkan): preview dokumen sebelum diunduh, pengelompokan jenis surat ke dalam section, dan pengiriman email massal ke penerima.
 
 ## Lisensi
 
@@ -89,4 +109,4 @@ Belum ditentukan.
 
 ## Credits
 
-Proyek ini dikembangkan dengan bantuan [Claude](https://claude.ai) (Anthropic) sebagai pair-programming partner — mulai dari diskusi arsitektur, penulisan kode, hingga proses debugging dan belajar konsep-konsep baru (FastAPI, Pydantic, docxtpl, dsb) sepanjang pengembangan.
+Proyek ini dikembangkan dengan bantuan [Claude](https://claude.ai) (Anthropic) sebagai pair-programming partner — mulai dari diskusi arsitektur, penulisan kode, hingga proses debugging dan belajar konsep-konsep baru (FastAPI, SQLModel, Alembic, docxtpl, dsb) sepanjang pengembangan.
