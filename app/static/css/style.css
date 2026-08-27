@@ -899,7 +899,7 @@ button.submit:disabled {
 /* Admin wizard */
 .admin-field-row {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 0.9fr auto;
+  grid-template-columns: auto 1.3fr 1fr 0.9fr auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -907,6 +907,10 @@ button.submit:disabled {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   margin-bottom: 10px;
+}
+
+.admin-field-row.dragging {
+  opacity: 0.55;
 }
 
 /* Elemen ini kini <label> (agar tertaut ke input-nya), bukan <span> lagi, jadi
@@ -991,6 +995,10 @@ button.submit:disabled {
 
   .admin-field-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-field-row .drag-handle {
+    justify-self: start;
   }
 
   .step {

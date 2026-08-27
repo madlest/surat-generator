@@ -19,6 +19,10 @@ let editingSlug = null;
 // Nama jenis surat yang sedang disunting, dipakai sebagai pembanding saat
 // admin mengetik ulang nama untuk mengonfirmasi penghapusan.
 let editingName = "";
+// Row field yang sedang diseret di wizard admin (drag-to-reorder). Disimpan
+// di sini, bukan sebagai flag pada row itu sendiri, mengikuti pola yang sama
+// dengan lampiran di form.js.
+let draggedFieldRow = null;
 
 function slugify(text) {
   return text
@@ -276,6 +280,23 @@ function renderAdminFieldsStep(variables, existingFields = []) {
   document.getElementById("admin-no-vars-note").style.display =
     variables.length === 0 ? "block" : "none";
 
+  // Ditimpa (bukan addEventListener) supaya listener lama tidak menumpuk
+  // setiap kali fungsi ini dipanggil ulang — baik saat wizard dibuka lagi
+  // maupun saat template diganti di tengah penyuntingan.
+  list.ondragover = (event) => {
+    if (!draggedFieldRow) return;
+    event.preventDefault();
+    const targetRow = event.target.closest(".admin-field-row");
+    if (!targetRow || targetRow === draggedFieldRow) return;
+    const targetMiddle =
+      targetRow.getBoundingClientRect().top +
+      targetRow.getBoundingClientRect().height / 2;
+    list.insertBefore(
+      draggedFieldRow,
+      event.clientY < targetMiddle ? targetRow : targetRow.nextSibling,
+    );
+  };
+
   const tersimpan = new Map(existingFields.map((f) => [f.field_key, f]));
 
   variables.forEach((key) => {
@@ -283,6 +304,27 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     const row = document.createElement("div");
     row.className = "admin-field-row";
     row.dataset.fieldKey = key;
+    row.setAttribute("aria-grabbed", "false");
+
+    const dragHandle = document.createElement("button");
+    dragHandle.type = "button";
+    dragHandle.className = "drag-handle";
+    dragHandle.draggable = true;
+    dragHandle.title = "Seret untuk mengubah urutan";
+    dragHandle.setAttribute("aria-label", "Seret untuk mengubah urutan");
+    dragHandle.innerHTML = "&#9776;";
+    dragHandle.addEventListener("dragstart", (event) => {
+      draggedFieldRow = row;
+      row.classList.add("dragging");
+      row.setAttribute("aria-grabbed", "true");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", key);
+    });
+    dragHandle.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+      row.setAttribute("aria-grabbed", "false");
+      draggedFieldRow = null;
+    });
 
     // Tiap kontrol diberi id sendiri supaya label bisa ditautkan dengannya.
     // Tanpa itu pembaca layar tidak tahu label mana milik kontrol yang mana.
@@ -363,7 +405,7 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     typeSelect.addEventListener("change", syncRequiredLock);
     syncRequiredLock();
 
-    row.append(keyCol, typeCol, levelCol, requiredCol);
+    row.append(dragHandle, keyCol, typeCol, levelCol, requiredCol);
     list.appendChild(row);
   });
 }
