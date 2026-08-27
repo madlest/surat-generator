@@ -16,6 +16,9 @@ let slugManuallyEdited = false;
 // Slug asal disimpan terpisah dari isian slug karena keduanya bisa berbeda:
 // yang asal dipakai sebagai alamat endpoint, yang di isian adalah slug tujuan.
 let editingSlug = null;
+// Nama jenis surat yang sedang disunting, dipakai sebagai pembanding saat
+// admin mengetik ulang nama untuk mengonfirmasi penghapusan.
+let editingName = "";
 
 function slugify(text) {
   return text
@@ -31,6 +34,11 @@ function resetAdminWizard() {
   detectedVariables = [];
   slugManuallyEdited = false;
   editingSlug = null;
+  editingName = "";
+  document.getElementById("admin-delete-confirm").value = "";
+  document.getElementById("admin-delete-btn").disabled = true;
+  document.getElementById("admin-delete-status").className = "status";
+  document.getElementById("admin-delete-status").textContent = "";
   document.getElementById("admin-template-file").value = "";
   document.getElementById("admin-name").value = "";
   document.getElementById("admin-slug").value = "";
@@ -70,6 +78,10 @@ function applyWizardMode(isEditing) {
   document.getElementById("admin-skip-template-btn").style.display = isEditing
     ? "block"
     : "none";
+  // Menghapus hanya masuk akal untuk jenis surat yang sudah tersimpan.
+  document.getElementById("admin-danger-zone").style.display = isEditing
+    ? "block"
+    : "none";
 }
 
 export function openAdminWizard() {
@@ -93,6 +105,8 @@ export async function openEditWizard(slug) {
     const letterType = await res.json();
 
     editingSlug = letterType.slug;
+    editingName = letterType.name;
+    setText(document.getElementById("admin-delete-target"), letterType.name);
     document.getElementById("admin-name").value = letterType.name;
     document.getElementById("admin-slug").value = letterType.slug;
     // Slug yang sudah ada tidak boleh tertimpa otomatis saat nama disunting.
@@ -189,6 +203,57 @@ function bacaFieldsDariForm() {
     required: row.querySelector(".admin-field-required-checkbox").checked,
   }));
 }
+
+document
+  .getElementById("admin-delete-confirm")
+  .addEventListener("input", (e) => {
+    // Tombol baru aktif kalau nama diketik ulang persis. Perbandingannya
+    // sengaja ketat (peka huruf besar-kecil) supaya penghapusan benar-benar
+    // disengaja, bukan hasil salah klik.
+    document.getElementById("admin-delete-btn").disabled =
+      e.target.value.trim() !== editingName;
+  });
+
+document
+  .getElementById("admin-delete-btn")
+  .addEventListener("click", async () => {
+    const statusEl = document.getElementById("admin-delete-status");
+    const confirmValue = document
+      .getElementById("admin-delete-confirm")
+      .value.trim();
+
+    if (!editingSlug || confirmValue !== editingName) return;
+
+    statusEl.className = "status show loading";
+    statusEl.textContent = "Menghapus jenis surat…";
+    document.getElementById("admin-delete-btn").disabled = true;
+
+    try {
+      const res = await fetch(
+        `/admin/letter-types/${encodeURIComponent(editingSlug)}` +
+          `?confirm_name=${encodeURIComponent(confirmValue)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(
+          typeof data.detail === "string"
+            ? data.detail
+            : "Gagal menghapus jenis surat.",
+        );
+
+      statusEl.className = "status show success";
+      statusEl.textContent = `Jenis surat "${editingName}" telah dihapus. Template docx-nya tersimpan di folder arsip.`;
+      setTimeout(() => {
+        showView("view-dashboard");
+        loadDashboard();
+      }, 1400);
+    } catch (err) {
+      statusEl.className = "status show error";
+      statusEl.textContent = err.message;
+      document.getElementById("admin-delete-btn").disabled = false;
+    }
+  });
 
 function humanizeKey(key) {
   return key

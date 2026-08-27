@@ -751,6 +751,50 @@ button.submit:disabled {
   color: var(--ink-soft);
 }
 
+/* Zona hapus: dibedakan dengan garis tepi merah supaya tidak tertukar dengan
+   bagian form biasa saat dibaca sekilas. */
+.danger-zone {
+  border-color: var(--error);
+}
+
+.danger-zone .step-head h2 {
+  color: var(--error);
+}
+
+.danger-note {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+.danger-btn {
+  margin-top: 14px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--error);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: var(--error);
+  color: #fff;
+}
+
+.danger-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .type-card-edit {
   position: absolute;
   top: 10px;

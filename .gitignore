@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 *.db
 app/templates/uploaded/
+app/templates/archived/

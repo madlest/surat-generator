@@ -137,6 +137,28 @@
           </button>
           <div class="status" id="admin-submit-status"></div>
         </section>
+
+        <section class="step danger-zone" id="admin-danger-zone" style="display: none">
+          <div class="step-head">
+            <h2>Hapus Jenis Surat</h2>
+          </div>
+          <p class="danger-note">
+            Jenis surat beserta seluruh konfigurasi field-nya akan dihapus dan
+            tidak bisa dikembalikan. File template docx-nya tetap disimpan di
+            folder arsip.
+          </p>
+          <div class="field">
+            <label for="admin-delete-confirm">
+              Ketik <strong id="admin-delete-target"></strong> untuk
+              mengonfirmasi
+            </label>
+            <input type="text" id="admin-delete-confirm" autocomplete="off" />
+          </div>
+          <button type="button" class="danger-btn" id="admin-delete-btn" disabled>
+            Hapus Jenis Surat Ini
+          </button>
+          <div class="status" id="admin-delete-status"></div>
+        </section>
       </div>
 
       <footer class="page-footer">

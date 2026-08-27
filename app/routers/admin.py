@@ -2,6 +2,7 @@ import json
 import re
 import shutil
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -15,6 +16,10 @@ from app.services.template_inspector import TemplateInspectionError, detect_cust
 router = APIRouter(prefix="/admin/letter-types", tags=["Admin - Jenis Surat"])
 
 UPLOAD_DIR = Path("app/templates/uploaded")
+# Template jenis surat yang dihapus dipindah ke sini, bukan dibuang. Menyusun
+# template docx itu pekerjaan yang tidak sepele, jadi penghapusan tidak
+# seharusnya membuatnya hilang permanen.
+ARCHIVE_DIR = Path("app/templates/archived")
 
 # Slug dipakai langsung sebagai nama file template, jadi bentuknya dibatasi
 # ketat: huruf kecil, angka, dan tanda hubung. Tanpa ini, slug seperti
@@ -310,6 +315,61 @@ def update_letter_type(
                 backup_path.unlink(missing_ok=True)
 
     return result
+
+
+@router.delete("/{slug}")
+def delete_letter_type(slug: str, confirm_name: str):
+    """
+    Hapus jenis surat dari daftar. Template docx-nya tidak dibuang, melainkan
+    dipindah ke folder arsip — menyusun template itu pekerjaan yang tidak
+    sepele, dan penghapusan di sini biasanya soal salah konfigurasi, bukan
+    karena templatenya memang tidak berguna lagi.
+
+    Nama jenis surat harus diketik ulang persis sebagai konfirmasi. Syarat ini
+    ditegakkan di server juga, bukan hanya di UI, karena endpoint ini bisa
+    dipanggil langsung dan penghapusan tidak bisa dibatalkan.
+    """
+    with Session(engine) as session:
+        letter_type = session.exec(select(LetterType).where(LetterType.slug == slug)).first()
+        if not letter_type:
+            raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
+
+        if confirm_name.strip() != letter_type.name:
+            raise HTTPException(
+                status_code=400,
+                detail="Nama konfirmasi tidak cocok dengan nama jenis surat.",
+            )
+
+        template_path = Path(letter_type.template_path)
+        archived_path: Path | None = None
+
+        try:
+            if template_path.exists():
+                ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+                # Stempel waktu supaya slug yang sama bisa dihapus berkali-kali
+                # tanpa arsip lama tertimpa.
+                stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                archived_path = ARCHIVE_DIR / f"{slug}-{stamp}.docx"
+                shutil.move(str(template_path), archived_path)
+
+            for field in session.exec(
+                select(LetterField).where(LetterField.letter_type_id == letter_type.id)
+            ).all():
+                session.delete(field)
+
+            session.delete(letter_type)
+            session.commit()
+        except Exception:
+            session.rollback()
+            # Kembalikan template ke tempat semula kalau penghapusan gagal.
+            if archived_path and archived_path.exists():
+                shutil.move(str(archived_path), template_path)
+            raise
+
+    return {
+        "slug": slug,
+        "archived_to": archived_path.as_posix() if archived_path else None,
+    }
 
 
 @router.get("")
