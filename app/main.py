@@ -2,11 +2,12 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import admin, auth, generate
+from app.routers import admin, auth, generate, superadmin
 
 app = FastAPI(title="Surat Generator")
 
 app.include_router(auth.router)
+app.include_router(superadmin.router)
 app.include_router(admin.router)
 app.include_router(generate.router)
 

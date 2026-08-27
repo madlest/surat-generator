@@ -49,3 +49,15 @@ def scope_unit_id(user: User) -> int | None:
     if user.role == UserRole.superadmin:
         return None
     return user.unit_id
+
+
+def require_superadmin(user: User = Depends(get_current_user)) -> User:
+    """
+    Sama seperti get_current_user, tapi menolak siapa pun yang bukan
+    superadmin. Dipakai di endpoint kelola unit & undang admin — admin biasa
+    tidak boleh melihat atau menyentuh endpoint ini sama sekali, beda dengan
+    admin.py yang admin biasa juga boleh pakai (di-scope ke unitnya sendiri).
+    """
+    if user.role != UserRole.superadmin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Hanya superadmin yang bisa mengakses ini.")
+    return user

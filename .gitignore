@@ -7,3 +7,4 @@ __pycache__/
 *.db.backup
 app/templates/uploaded/
 app/templates/archived/
+HANDOFF_CONTEXT.md

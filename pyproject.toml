@@ -17,3 +17,12 @@ dependencies = [
     "uvicorn>=0.52.4",
     "requests>=2.32.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
