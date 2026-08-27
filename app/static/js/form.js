@@ -12,6 +12,10 @@ import { showView } from "./views.js";
 const formArea = document.getElementById("form-area");
 const formTypeTag = document.getElementById("form-type-tag");
 let currentLetterType = null;
+// Mode pengisian penerima: "list" (isi baris satu per satu) atau "csv".
+// Disimpan di level modul karena diubah oleh setupRecipientSection dan dibaca
+// oleh setupSubmitHandler.
+let recipientsMode = "list";
 
 export async function openForm(slug) {
   showView("view-form");
@@ -346,7 +350,9 @@ function setupRecipientSection(recipientFields) {
   addRecipientRow();
 
   // mode toggle (list vs csv)
-  let recipientsMode = "list";
+  // Form dibangun ulang tiap kali jenis surat dibuka, jadi mode dikembalikan
+  // ke default agar tidak terbawa dari jenis surat sebelumnya.
+  recipientsMode = "list";
   const modeButtons = document.querySelectorAll(".mode-btn");
   const modeList = document.getElementById("mode-list");
   const modeCsv = document.getElementById("mode-csv");
@@ -403,9 +409,6 @@ function setupRecipientSection(recipientFields) {
       a.click();
       URL.revokeObjectURL(url);
     });
-
-  formArea.dataset.recipientsMode = recipientsMode;
-  formArea._getRecipientsMode = () => recipientsMode;
 }
 
 function updateStampState() {
@@ -492,9 +495,6 @@ function setupSubmitHandler(batchFields, recipientFields) {
       formData.append("lampiran_files", file),
     );
 
-    const recipientsMode = formArea._getRecipientsMode
-      ? formArea._getRecipientsMode()
-      : "list";
     formData.append("recipients_mode", recipientsMode);
 
     if (recipientsMode === "list") {
