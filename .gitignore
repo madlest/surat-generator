@@ -4,5 +4,6 @@ temp
 __pycache__/
 *.pyc
 *.db
+*.db.backup
 app/templates/uploaded/
-app/templates/archived/*.db.backup
+app/templates/archived/
