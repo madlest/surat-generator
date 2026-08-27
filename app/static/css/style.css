@@ -664,6 +664,30 @@ button.submit:disabled {
   cursor: not-allowed;
 }
 
+button.preview-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--teal);
+  color: var(--teal-dark);
+  padding: 15px 20px;
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+button.preview-btn:hover:not(:disabled) {
+  background: var(--teal-tint);
+}
+
+button.preview-btn:disabled {
+  border-color: var(--line-strong);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
 .status {
   margin-top: 16px;
   padding: 12px 14px;
@@ -899,7 +923,7 @@ button.submit:disabled {
 /* Admin wizard */
 .admin-field-row {
   display: grid;
-  grid-template-columns: auto 1.3fr 1fr 0.9fr auto;
+  grid-template-columns: 1.3fr 1fr 0.9fr auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -907,10 +931,6 @@ button.submit:disabled {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   margin-bottom: 10px;
-}
-
-.admin-field-row.dragging {
-  opacity: 0.55;
 }
 
 /* Elemen ini kini <label> (agar tertaut ke input-nya), bukan <span> lagi, jadi
@@ -995,10 +1015,6 @@ button.submit:disabled {
 
   .admin-field-row {
     grid-template-columns: 1fr;
-  }
-
-  .admin-field-row .drag-handle {
-    justify-self: start;
   }
 
   .step {

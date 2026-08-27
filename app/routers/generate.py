@@ -17,7 +17,11 @@ from app.core.database import engine
 from app.core.job_store import job_store
 from app.models.letter_type import LetterField
 from app.services.document_generator import DocumentGenerationError
-from app.services.dynamic_batch_generator import DynamicBatchGenerationError, generate_batch
+from app.services.dynamic_batch_generator import (
+    DynamicBatchGenerationError,
+    generate_batch,
+    generate_preview,
+)
 from app.services.dynamic_fields import (
     FieldValidationError,
     parse_field_values,
@@ -153,16 +157,27 @@ def _run_batch_job(
         shutil.rmtree(working_dir, ignore_errors=True)
 
 
-@router.post("/{slug}")
-def start_generate_job(
+def _prepare_generate_request(
     slug: str,
-    background_tasks: BackgroundTasks,
-    batch_info: str = Form(...),
-    recipients_mode: str = Form(...),
-    lampiran_files: list[UploadFile] | None = File(default=None),
-    recipients_json: str | None = Form(default=None),
-    recipients_csv: UploadFile | None = File(default=None),
+    working_dir: Path,
+    batch_info: str,
+    recipients_mode: str,
+    lampiran_files: list[UploadFile],
+    recipients_json: str | None,
+    recipients_csv: UploadFile | None,
 ):
+    """
+    Ambil LetterType untuk slug, lalu urai & validasi batch_info, lampiran,
+    dan recipients. Dipakai bersama oleh endpoint generate (job penuh) dan
+    preview (satu penerima), supaya aturan validasinya tidak bercabang.
+
+    working_dir harus sudah dibuat oleh pemanggil (butuh ada lebih dulu untuk
+    tempat lampiran disimpan). Kalau terjadi error, folder ini dihapus di sini
+    sebelum exception dilempar ke pemanggil.
+
+    Mengembalikan (letter_type, batch_fields, recipient_fields, base_info,
+    custom_batch_values, recipients).
+    """
     with Session(engine) as session:
         result = get_letter_type_with_fields(session, slug)
     if not result:
@@ -170,11 +185,6 @@ def start_generate_job(
 
     letter_type, fields = result
     batch_fields, recipient_fields = split_fields_by_level(fields)
-
-    lampiran_files = lampiran_files or []
-    job_id = uuid.uuid4().hex
-    working_dir = Path(settings.temp_dir) / f"job_{job_id}"
-    working_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         try:
@@ -235,8 +245,37 @@ def start_generate_job(
     except Exception:
         shutil.rmtree(working_dir, ignore_errors=True)
         # Detail teknis (path, stack) hanya ke log server, bukan ke user.
-        logger.exception("Gagal menyiapkan job generate untuk slug '%s'", slug)
+        logger.exception("Gagal menyiapkan request generate untuk slug '%s'", slug)
         raise HTTPException(status_code=500, detail="Terjadi kesalahan tidak terduga di server.")
+
+    return letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients
+
+
+@router.post("/{slug}")
+def start_generate_job(
+    slug: str,
+    background_tasks: BackgroundTasks,
+    batch_info: str = Form(...),
+    recipients_mode: str = Form(...),
+    lampiran_files: list[UploadFile] | None = File(default=None),
+    recipients_json: str | None = Form(default=None),
+    recipients_csv: UploadFile | None = File(default=None),
+):
+    job_id = uuid.uuid4().hex
+    working_dir = Path(settings.temp_dir) / f"job_{job_id}"
+    working_dir.mkdir(parents=True, exist_ok=True)
+
+    letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients = (
+        _prepare_generate_request(
+            slug,
+            working_dir,
+            batch_info,
+            recipients_mode,
+            lampiran_files or [],
+            recipients_json,
+            recipients_csv,
+        )
+    )
 
     # Sapu job lama tiap kali ada job baru — cukup untuk skala pemakaian ini,
     # tanpa perlu scheduler terpisah.
@@ -257,6 +296,72 @@ def start_generate_job(
     )
 
     return {"job_id": job_id, "total": len(recipients)}
+
+
+@router.post("/{slug}/preview")
+def preview_generate(
+    slug: str,
+    background_tasks: BackgroundTasks,
+    batch_info: str = Form(...),
+    recipients_mode: str = Form(...),
+    lampiran_files: list[UploadFile] | None = File(default=None),
+    recipients_json: str | None = Form(default=None),
+    recipients_csv: UploadFile | None = File(default=None),
+):
+    """
+    Generate satu dokumen (cover letter + lampiran tergabung) untuk penerima
+    pertama saja, secara sinkron — dipakai frontend untuk pratinjau sebelum
+    generate batch yang sesungguhnya. Tidak menyentuh job_store karena tidak
+    ada progress untuk dipantau; folder kerja dibersihkan lewat
+    background_tasks setelah PDF-nya terkirim ke klien, jadi tidak menumpuk
+    seperti temp folder job biasa.
+    """
+    preview_id = uuid.uuid4().hex
+    working_dir = Path(settings.temp_dir) / f"preview_{preview_id}"
+    working_dir.mkdir(parents=True, exist_ok=True)
+
+    letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients = (
+        _prepare_generate_request(
+            slug,
+            working_dir,
+            batch_info,
+            recipients_mode,
+            lampiran_files or [],
+            recipients_json,
+            recipients_csv,
+        )
+    )
+
+    if not recipients:
+        shutil.rmtree(working_dir, ignore_errors=True)
+        raise HTTPException(status_code=422, detail="Isi minimal satu penerima untuk membuat pratinjau.")
+
+    try:
+        pdf_path = generate_preview(
+            template_path=letter_type.template_path,
+            base_info=base_info,
+            custom_batch_values=custom_batch_values,
+            batch_fields=batch_fields,
+            recipient_values=recipients[0],
+            recipient_fields=recipient_fields,
+            working_dir=str(working_dir),
+        )
+    except (DocumentGenerationError, PdfMergeError, DynamicBatchGenerationError) as e:
+        shutil.rmtree(working_dir, ignore_errors=True)
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        shutil.rmtree(working_dir, ignore_errors=True)
+        logger.exception("Gagal membuat pratinjau untuk slug '%s'", slug)
+        raise HTTPException(status_code=500, detail="Terjadi kesalahan tidak terduga saat membuat pratinjau.")
+
+    background_tasks.add_task(shutil.rmtree, working_dir, ignore_errors=True)
+
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
+        filename="pratinjau_surat.pdf",
+        background=background_tasks,
+    )
 
 
 @router.get("/jobs/{job_id}/status")
