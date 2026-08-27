@@ -25,15 +25,6 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', '', name)
 
 
-def build_recipient_filename(nama_dosen: str, mata_kuliah: str, semester: str) -> str:
-    """
-    Bangun nama file PDF per recipient, format:
-    "{Nama Dosen} - {Mata Kuliah} - Semester {Semester}.pdf"
-    """
-    raw_name = f"{nama_dosen} - {mata_kuliah} - Semester {semester}"
-    return f"{sanitize_filename(raw_name)}.pdf"
-
-
 def build_generic_recipient_filename(label: str, index: int) -> str:
     """
     Bangun nama file PDF per recipient untuk jenis surat dinamis,
