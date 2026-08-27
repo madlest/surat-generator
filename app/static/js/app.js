@@ -5,7 +5,7 @@ import { initTheme } from "./theme.js";
 import { showView } from "./views.js";
 import { initDashboard, loadDashboard } from "./dashboard.js";
 import { openForm } from "./form.js";
-import { openAdminWizard } from "./admin.js";
+import { openAdminWizard, openEditWizard } from "./admin.js";
 
 initTheme();
 
@@ -16,6 +16,7 @@ document.getElementById("footer-year").textContent = new Date().getFullYear();
 initDashboard({
   onSelectType: openForm,
   onAddNew: openAdminWizard,
+  onEditType: openEditWizard,
 });
 
 function backToDashboard() {

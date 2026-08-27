@@ -9,6 +9,7 @@ import { setText } from "./helpers.js";
 let handlers = {
   onSelectType: () => {},
   onAddNew: () => {},
+  onEditType: () => {},
 };
 
 export function initDashboard(nextHandlers) {
@@ -65,6 +66,21 @@ function renderDashboard(types) {
 
     card.append(mark, name, slug);
     card.addEventListener("click", () => handlers.onSelectType(t.slug));
+
+    // Tombol ubah diletakkan di dalam kartu, jadi kliknya perlu dihentikan
+    // agar tidak ikut memicu pembukaan form seperti klik kartu biasa.
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "type-card-edit";
+    editBtn.title = `Ubah "${t.name}"`;
+    editBtn.setAttribute("aria-label", `Ubah jenis surat ${t.name}`);
+    editBtn.textContent = "\u270E";
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handlers.onEditType(t.slug);
+    });
+    card.appendChild(editBtn);
+
     dashboardGrid.appendChild(card);
   });
 

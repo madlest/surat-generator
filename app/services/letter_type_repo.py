@@ -1,6 +1,6 @@
 # Helper query untuk mengambil LetterType beserta field-fieldnya by slug.
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.models.letter_type import FieldLevel, LetterField, LetterType
 
@@ -13,7 +13,9 @@ def get_letter_type_with_fields(session: Session, slug: str) -> tuple[LetterType
     fields = session.exec(
         select(LetterField)
         .where(LetterField.letter_type_id == letter_type.id)
-        .order_by(LetterField.display_order)
+        # col() dipakai karena type checker melihat display_order sebagai int
+        # (anotasi atribut instans), bukan sebagai kolom yang bisa diurutkan.
+        .order_by(col(LetterField.display_order))
     ).all()
 
     return letter_type, list(fields)

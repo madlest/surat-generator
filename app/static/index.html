@@ -54,8 +54,10 @@
         </button>
         <header class="masthead">
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
-          <h1>Tambah Jenis Surat Baru</h1>
-          <p>Upload template docx, lalu atur field-nya. Tidak perlu kode.</p>
+          <h1 id="admin-title">Tambah Jenis Surat Baru</h1>
+          <p id="admin-subtitle">
+            Upload template docx, lalu atur field-nya. Tidak perlu kode.
+          </p>
         </header>
 
         <section class="step" id="admin-step-1">
@@ -64,7 +66,9 @@
             <h2>Upload Template</h2>
           </div>
           <div class="field">
-            <label for="admin-template-file">File Template (.docx)</label>
+            <label for="admin-template-file" id="admin-template-label"
+              >File Template (.docx)</label
+            >
             <input type="file" id="admin-template-file" accept=".docx" />
             <small class="field-hint">
               Placeholder variabel di template ditulis dengan sintaks Jinja,
@@ -79,6 +83,14 @@
             style="margin-top: 16px"
           >
             Deteksi Variabel &rarr;
+          </button>
+          <button
+            type="button"
+            class="add-btn"
+            id="admin-skip-template-btn"
+            style="margin-top: 8px; display: none"
+          >
+            Lanjut tanpa mengganti template &rarr;
           </button>
           <div class="status" id="admin-inspect-status"></div>
         </section>
@@ -121,7 +133,7 @@
             id="admin-submit-btn"
             style="margin-top: 6px"
           >
-            Simpan Jenis Surat
+            <span id="admin-submit-label">Simpan Jenis Surat</span>
           </button>
           <div class="status" id="admin-submit-status"></div>
         </section>
