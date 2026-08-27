@@ -767,6 +767,34 @@ button.submit:disabled {
   margin: 0 0 16px;
 }
 
+/* Label di sini memuat nama yang harus diketik ulang persis. Gaya label global
+   memakai uppercase, sehingga "Uji Coba" tampil sebagai "UJI COBA" — instruksi
+   yang menyesatkan untuk perbandingan yang peka huruf besar-kecil. */
+.danger-zone label[for="admin-delete-confirm"] {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.danger-zone label[for="admin-delete-confirm"] strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  color: var(--error);
+}
+
+/* Kutip ditambahkan lewat CSS, bukan ke dalam teksnya, supaya nama yang
+   ditampilkan tetap persis sama dengan yang harus diketik — termasuk kalau
+   namanya mengandung spasi di ujung. */
+.danger-zone label[for="admin-delete-confirm"] strong::before {
+  content: "\201C";
+}
+
+.danger-zone label[for="admin-delete-confirm"] strong::after {
+  content: "\201D";
+}
+
 .danger-btn {
   margin-top: 14px;
   width: 100%;
@@ -881,10 +909,15 @@ button.submit:disabled {
   margin-bottom: 10px;
 }
 
+/* Elemen ini kini <label> (agar tertaut ke input-nya), bukan <span> lagi, jadi
+   gaya label global perlu dinetralkan supaya tampilannya tidak berubah. */
 .admin-field-row .field-key-label {
   font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
   color: var(--ink-soft);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .admin-required-toggle {
@@ -1004,4 +1037,137 @@ button.submit:disabled {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- Arsip jenis surat ---------- */
+
+/* Tautan ke arsip di bawah dashboard: sengaja tampil sebagai teks biasa, bukan
+   tombol menonjol, karena jarang dipakai. */
+.dashboard-foot {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal-dark);
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.archive-row {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.archive-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 200px;
+}
+
+.archive-name {
+  font-family: "Source Serif 4", serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.archive-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.archive-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.archive-restore-btn,
+.archive-purge-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.archive-restore-btn {
+  border: 1px solid var(--teal);
+  color: var(--teal-dark);
+}
+
+.archive-restore-btn:hover {
+  background: var(--teal);
+  color: #fff;
+}
+
+.archive-purge-btn {
+  border: 1px solid var(--line-strong);
+  color: var(--ink-soft);
+}
+
+.archive-purge-btn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.archive-confirm {
+  flex: 1 1 100%;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Gaya label global memakai uppercase; di sini nama harus tampil apa adanya
+   karena harus diketik ulang persis. */
+.archive-confirm label {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.archive-confirm label strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  color: var(--error);
+}
+
+.archive-confirm label strong::before {
+  content: "\201C";
+}
+
+.archive-confirm label strong::after {
+  content: "\201D";
+}
+
+.archive-status {
+  flex: 1 1 100%;
+  margin-top: 10px;
 }

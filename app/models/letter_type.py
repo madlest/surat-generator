@@ -20,6 +20,10 @@ class LetterType(SQLModel, table=True):
     name: str
     template_path: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    # Terisi saat jenis surat dihapus. Barisnya sengaja tidak dibuang supaya
+    # seluruh konfigurasi field-nya utuh dan pemulihan benar-benar berarti;
+    # penghapusan sungguhan dilakukan terpisah lewat halaman arsip.
+    deleted_at: datetime | None = Field(default=None)
 
     fields: list["LetterField"] = Relationship(back_populates="letter_type")
 

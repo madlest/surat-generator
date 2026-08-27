@@ -225,7 +225,7 @@ document
     if (!editingSlug || confirmValue !== editingName) return;
 
     statusEl.className = "status show loading";
-    statusEl.textContent = "Menghapus jenis surat…";
+    statusEl.textContent = "Memindahkan ke arsip…";
     document.getElementById("admin-delete-btn").disabled = true;
 
     try {
@@ -243,7 +243,7 @@ document
         );
 
       statusEl.className = "status show success";
-      statusEl.textContent = `Jenis surat "${editingName}" telah dihapus. Template docx-nya tersimpan di folder arsip.`;
+      statusEl.textContent = `Jenis surat "${editingName}" dipindahkan ke arsip. Bisa dipulihkan kapan saja dari halaman arsip.`;
       setTimeout(() => {
         showView("view-dashboard");
         loadDashboard();
@@ -284,13 +284,21 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     row.className = "admin-field-row";
     row.dataset.fieldKey = key;
 
+    // Tiap kontrol diberi id sendiri supaya label bisa ditautkan dengannya.
+    // Tanpa itu pembaca layar tidak tahu label mana milik kontrol yang mana.
+    const labelId = `admin-label-${key}`;
+    const typeId = `admin-type-${key}`;
+    const levelId = `admin-level-${key}`;
+
     const keyCol = document.createElement("div");
     keyCol.className = "field";
-    const keyLabel = document.createElement("span");
+    const keyLabel = document.createElement("label");
     keyLabel.className = "field-key-label";
+    keyLabel.setAttribute("for", labelId);
     keyLabel.textContent = `{{ ${key} }}`;
     const labelInput = document.createElement("input");
     labelInput.type = "text";
+    labelInput.id = labelId;
     labelInput.className = "admin-field-label-input";
     labelInput.value = awal ? awal.label : humanizeKey(key);
     keyCol.append(keyLabel, labelInput);
@@ -298,7 +306,9 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     const typeCol = document.createElement("div");
     typeCol.className = "field";
     const typeLabel = setText(document.createElement("label"), "Tipe");
+    typeLabel.setAttribute("for", typeId);
     const typeSelect = document.createElement("select");
+    typeSelect.id = typeId;
     typeSelect.className = "admin-field-type-select";
     [
       ["text", "Teks"],
@@ -317,7 +327,9 @@ function renderAdminFieldsStep(variables, existingFields = []) {
       document.createElement("label"),
       "Level",
     );
+    levelLabel.setAttribute("for", levelId);
     const levelSelect = document.createElement("select");
+    levelSelect.id = levelId;
     levelSelect.className = "admin-field-level-select";
     [
       ["batch", "Sekali per surat"],
@@ -333,6 +345,7 @@ function renderAdminFieldsStep(variables, existingFields = []) {
     requiredCol.className = "admin-required-toggle";
     const requiredCheckbox = document.createElement("input");
     requiredCheckbox.type = "checkbox";
+    requiredCheckbox.id = `admin-required-${key}`;
     requiredCheckbox.className = "admin-field-required-checkbox";
     requiredCheckbox.checked = awal ? !!awal.required : true;
     requiredCol.append(

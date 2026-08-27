@@ -5,8 +5,21 @@ from sqlmodel import Session, col, select
 from app.models.letter_type import FieldLevel, LetterField, LetterType
 
 
-def get_letter_type_with_fields(session: Session, slug: str) -> tuple[LetterType, list[LetterField]] | None:
-    letter_type = session.exec(select(LetterType).where(LetterType.slug == slug)).first()
+def get_letter_type_with_fields(
+    session: Session, slug: str, include_deleted: bool = False
+) -> tuple[LetterType, list[LetterField]] | None:
+    """
+    Ambil jenis surat beserta field-fieldnya.
+
+    Jenis surat yang sudah diarsipkan disembunyikan secara bawaan — ini juga
+    yang membuat /generate/{slug} otomatis menolaknya, tanpa perlu pengecekan
+    terpisah di sana. Halaman arsip memakai include_deleted=True.
+    """
+    query = select(LetterType).where(LetterType.slug == slug)
+    if not include_deleted:
+        query = query.where(col(LetterType.deleted_at).is_(None))
+
+    letter_type = session.exec(query).first()
     if not letter_type:
         return None
 

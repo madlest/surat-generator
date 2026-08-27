@@ -24,6 +24,27 @@
           </p>
         </header>
         <div class="dashboard-grid" id="dashboard-grid"></div>
+        <p class="dashboard-foot">
+          <button type="button" class="link-btn" id="open-archive-btn">
+            Lihat arsip jenis surat
+          </button>
+        </p>
+      </div>
+
+      <!-- ================= ARSIP ================= -->
+      <div class="view" id="view-archive">
+        <button type="button" class="back-btn" id="back-to-dashboard-from-archive">
+          &larr; Kembali ke daftar jenis surat
+        </button>
+        <header class="masthead">
+          <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
+          <h1>Arsip Jenis Surat</h1>
+          <p>
+            Jenis surat yang sudah dihapus tersimpan di sini lengkap dengan
+            konfigurasi field-nya, dan bisa dipulihkan kapan saja.
+          </p>
+        </header>
+        <div id="archive-list"></div>
       </div>
 
       <!-- ================= DYNAMIC FORM ================= -->
@@ -143,9 +164,9 @@
             <h2>Hapus Jenis Surat</h2>
           </div>
           <p class="danger-note">
-            Jenis surat beserta seluruh konfigurasi field-nya akan dihapus dan
-            tidak bisa dikembalikan. File template docx-nya tetap disimpan di
-            folder arsip.
+            Jenis surat ini akan dipindah ke arsip dan tidak lagi muncul di
+            dashboard. Seluruh konfigurasi field-nya tetap tersimpan, jadi bisa
+            dipulihkan kapan saja lewat halaman arsip.
           </p>
           <div class="field">
             <label for="admin-delete-confirm">
@@ -155,7 +176,7 @@
             <input type="text" id="admin-delete-confirm" autocomplete="off" />
           </div>
           <button type="button" class="danger-btn" id="admin-delete-btn" disabled>
-            Hapus Jenis Surat Ini
+            Pindahkan ke Arsip
           </button>
           <div class="status" id="admin-delete-status"></div>
         </section>
