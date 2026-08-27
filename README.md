@@ -105,7 +105,7 @@ Rencana berikutnya (belum dijadwalkan): preview dokumen sebelum diunduh, pengelo
 
 ## Lisensi
 
-Belum ditentukan.
+[MIT](LICENSE)
 
 ## Credits
 
