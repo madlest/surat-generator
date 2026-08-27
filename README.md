@@ -10,9 +10,11 @@ Dibangun dengan Python 3.12 dan FastAPI, sebagai proyek belajar sekaligus alat b
 
 ## Fitur
 
-- **Jenis surat dinamis** — admin menambah jenis surat baru lewat wizard: unggah template `.docx`, variabel Jinja di dalamnya terdeteksi otomatis, lalu admin mengatur label, tipe (teks/tanggal/angka), dan level tiap field (`batch` = sekali per surat, `recipient` = per penerima). Jenis surat juga bisa diubah (termasuk ganti slug dan template) atau dihapus.
+- **Jenis surat dinamis** — admin menambah jenis surat baru lewat wizard: unggah template `.docx`, variabel Jinja di dalamnya terdeteksi otomatis, lalu admin mengatur label, tipe (teks/tanggal/angka), level tiap field (`batch` = sekali per surat, `recipient` = per penerima), dan **urutan tampilnya** (seret-urutkan langsung di wizard). Jenis surat juga bisa diubah (termasuk ganti slug dan template) atau dihapus.
+- **Unduh template aktif** — saat mengubah jenis surat, admin bisa mengunduh salinan template `.docx` yang sedang dipakai, sebagai berkas dasar untuk revisi.
 - **Hapus lunak & arsip** — jenis surat yang dihapus masuk ke arsip lengkap dengan konfigurasi fieldnya, bisa dipulihkan utuh kapan saja atau dihapus permanen.
 - **Generate & batch generation** — isi data lewat form dinamis atau upload CSV; satu surat bisa dikirim ke banyak penerima sekaligus, dengan progress yang bisa dipantau (polling).
+- **Preview sebelum unduh** — generate dokumen untuk penerima pertama saja (termasuk lampiran tergabung) untuk diperiksa, tanpa perlu memproses seluruh batch dulu.
 - **Lampiran dinamis** — gabungkan beberapa file PDF lampiran ke setiap dokumen hasil generate.
 - **Output dalam ZIP** — seluruh dokumen hasil batch dibundel jadi satu file ZIP untuk diunduh sekaligus.
 - **Format tanggal Indonesia** — seragam `DD-MM-YYYY` di seluruh antarmuka, dengan konversi otomatis dari input CSV.
@@ -90,18 +92,18 @@ migrations/                  # migrasi skema database (Alembic)
 Sejak v1.1.0, menambah jenis surat **tidak lagi memerlukan perubahan kode**. Semua dilakukan lewat dashboard admin:
 
 1. Buka wizard "Tambah Jenis Surat" dan unggah file template `.docx` (memakai placeholder Jinja `{{ }}` ala `docxtpl`).
-2. Variabel dalam template terdeteksi otomatis. Untuk tiap variabel, atur label yang ditampilkan, tipe data (teks/tanggal/angka), dan level: `batch` (sekali per surat) atau `recipient` (beda-beda per penerima).
+2. Variabel dalam template terdeteksi otomatis. Untuk tiap variabel, atur label yang ditampilkan, tipe data (teks/tanggal/angka), level (`batch` sekali per surat atau `recipient` beda-beda per penerima), dan urutan tampil (seret baris field-nya sesuai kebutuhan).
 3. Simpan — jenis surat baru langsung muncul di dashboard dan siap dipakai untuk generate/batch generate.
 
-Jenis surat yang sudah ada juga bisa diubah (termasuk ganti template) lewat wizard yang sama, atau dihapus (masuk arsip, bisa dipulihkan).
+Jenis surat yang sudah ada juga bisa diubah (termasuk ganti template — dengan opsi mengunduh dulu template yang sedang aktif sebagai berkas dasar revisi) lewat wizard yang sama, atau dihapus (masuk arsip, bisa dipulihkan).
 
 ## Status Pengembangan
 
 **v1.1.0** — dirilis dan berjalan di produksi. Wizard jenis surat dinamis, dashboard, batch generation, lampiran, arsip/hapus lunak, dan migrasi skema database (Alembic) sudah lengkap dan teruji.
 
-**v1.2.0** (dalam pengerjaan) — seret-urutkan (drag-to-reorder) field di wizard admin, supaya urutan field di form generate tidak lagi mengikuti urutan abjad otomatis.
+**v1.2.0** — dirilis. Seret-urutkan field di wizard admin, preview dokumen sebelum unduh (satu penerima pertama, termasuk lampiran), dan unduh template `.docx` yang sedang aktif.
 
-Rencana berikutnya (belum dijadwalkan): preview dokumen sebelum diunduh, pengelompokan jenis surat ke dalam section, dan pengiriman email massal ke penerima.
+Rencana berikutnya (belum dijadwalkan): pengelompokan jenis surat ke dalam section, dan pengiriman massal ke penerima (email dan/atau WhatsApp, sebagai dua kapabilitas terpisah yang bisa hidup berdampingan per jenis surat).
 
 ## Lisensi
 
