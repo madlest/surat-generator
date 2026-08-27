@@ -541,7 +541,7 @@ function setupSubmitHandler(batchFields, recipientFields) {
 
     try {
       const response = await fetch(
-        `/generate/${encodeURIComponent(currentLetterType.slug)}`,
+        `/generate/${encodeURIComponent(currentLetterType.unit_slug)}/${encodeURIComponent(currentLetterType.slug)}`,
         {
           method: "POST",
           body: formData,
@@ -660,7 +660,7 @@ function setupSubmitHandler(batchFields, recipientFields) {
 
     try {
       const response = await fetch(
-        `/generate/${encodeURIComponent(currentLetterType.slug)}/preview`,
+        `/generate/${encodeURIComponent(currentLetterType.unit_slug)}/${encodeURIComponent(currentLetterType.slug)}/preview`,
         {
           method: "POST",
           body: formData,

@@ -76,31 +76,17 @@ def _resolve_target_unit(session: Session, current_user: User, requested_unit_id
     return unit
 
 
-def _check_cross_unit_filename_conflict(session: Session, slug: str, target_unit_id: int) -> None:
+def _unit_upload_dir(unit_slug: str) -> Path:
     """
-    Pengaman SEMENTARA: penyimpanan file template masih berbasis nama
-    `{slug}.docx` yang sama-sama dipakai lintas unit (belum dipindah ke
-    `{unit_slug}/{slug}.docx` — itu rencana Stage 3b). Karena constraint
-    database sekarang mengizinkan slug yang sama dipakai unit berbeda, tanpa
-    pengecekan ini dua unit bisa saling menimpa file .docx satu sama lain di
-    disk walau baris LetterType-nya sendiri aman terpisah.
+    Folder template untuk satu unit: app/templates/uploaded/{unit_slug}/.
 
-    Ini bukan solusi permanen — hapus begitu Stage 3b selesai memindahkan
-    template ke folder per-unit, karena setelah itu slug yang sama di unit
-    berbeda memang sah punya file terpisah.
+    Sejak Stage 3b, tiap unit punya foldernya sendiri, jadi dua unit bebas
+    memakai slug jenis surat yang sama tanpa berebut nama file — beda dari
+    Stage 3a yang masih menolak itu karena filenya sempat disimpan flat.
     """
-    conflict = session.exec(
-        select(LetterType).where(LetterType.slug == slug, LetterType.unit_id != target_unit_id)
-    ).first()
-    if conflict:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Slug '{slug}' sudah dipakai unit lain. Penyimpanan berkas template masih "
-                "berbasis nama global untuk sementara — pilih slug lain sampai migrasi "
-                "penyimpanan per-unit selesai."
-            ),
-        )
+    path = UPLOAD_DIR / unit_slug
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _normalize_fields_config(fields_config: str) -> list[dict]:
@@ -240,13 +226,12 @@ def create_letter_type(
     name, slug = _validate_identity(name, slug)
     normalized_fields = _normalize_fields_config(fields_config)
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = UPLOAD_DIR / f"{slug}.docx"
-
     with Session(engine) as session:
         target_unit = _resolve_target_unit(session, current_user, unit_id)
         assert target_unit.id is not None  # baris dari DB selalu punya id
-        _check_cross_unit_filename_conflict(session, slug, target_unit.id)
+
+        unit_dir = _unit_upload_dir(target_unit.slug)
+        final_path = unit_dir / f"{slug}.docx"
 
         # Jenis surat yang diarsipkan tetap memegang slug-nya. Tanpa pesan yang
         # membedakan, admin akan bingung: slug ditolak padahal tidak ada kartu
@@ -335,7 +320,6 @@ def update_letter_type(
     name, new_slug = _validate_identity(name, new_slug)
     normalized_fields = _normalize_fields_config(fields_config)
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     backup_path: Path | None = None
     # Simpan berkasnya sendiri, bukan sekadar penanda boolean: penyempitan tipe
     # tidak menular lewat variabel perantara, sehingga _save_template tetap
@@ -361,15 +345,17 @@ def update_letter_type(
             raise HTTPException(status_code=500, detail="Jenis surat tidak punya id.")
 
         own_unit_id = letter_type.unit_id
+        own_unit_slug = letter_type.unit.slug
+        unit_dir = _unit_upload_dir(own_unit_slug)
         old_path = Path(letter_type.template_path)
-        new_path = UPLOAD_DIR / f"{new_slug}.docx"
+        new_path = unit_dir / f"{new_slug}.docx"
         slug_berubah = new_slug != slug
 
         if slug_berubah:
-            # Bentrok dicek dalam SATU unit yang sama (slug cuma wajib unik
-            # per unit), plus bentrok LINTAS unit di level nama file (lihat
-            # _check_cross_unit_filename_conflict — pengaman sementara sampai
-            # Stage 3b).
+            # Bentrok cukup dicek dalam SATU unit yang sama — slug wajib unik
+            # per unit, dan sejak Stage 3b filenya juga tersimpan di folder
+            # terpisah per unit, jadi tidak ada lagi risiko tabrakan lintas
+            # unit di level nama file.
             bentrok = session.exec(
                 select(LetterType).where(LetterType.slug == new_slug, LetterType.unit_id == own_unit_id)
             ).first()
@@ -379,7 +365,6 @@ def update_letter_type(
                     status_code=400,
                     detail=f"Slug '{new_slug}' sudah dipakai jenis surat{di_arsip} di unit ini.",
                 )
-            _check_cross_unit_filename_conflict(session, new_slug, own_unit_id)
             if new_path.exists():
                 raise HTTPException(
                     status_code=400,
@@ -588,6 +573,7 @@ def get_letter_type(slug: str, current_user: User = Depends(get_current_user)):
             "id": letter_type.id,
             "slug": letter_type.slug,
             "name": letter_type.name,
+            "unit_slug": letter_type.unit.slug,
             "fields": fields,
         }
 

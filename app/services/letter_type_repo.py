@@ -3,6 +3,7 @@
 from sqlmodel import Session, col, select
 
 from app.models.letter_type import FieldLevel, LetterField, LetterType
+from app.models.organization import Unit
 
 
 def get_letter_type_with_fields(
@@ -39,6 +40,37 @@ def get_letter_type_with_fields(
         .where(LetterField.letter_type_id == letter_type.id)
         # col() dipakai karena type checker melihat display_order sebagai int
         # (anotasi atribut instans), bukan sebagai kolom yang bisa diurutkan.
+        .order_by(col(LetterField.display_order))
+    ).all()
+
+    return letter_type, list(fields)
+
+
+def get_letter_type_by_unit_slug(
+    session: Session, unit_slug: str, type_slug: str, include_deleted: bool = False
+) -> tuple[LetterType, list[LetterField]] | None:
+    """
+    Sama seperti get_letter_type_with_fields, tapi mencari lewat pasangan
+    (unit_slug, slug) alih-alih slug saja — dipakai oleh routing
+    /generate/{unit_slug}/{slug}. Pasangan ini dijamin unik secara global oleh
+    constraint database (slug unik per unit, unit.slug unik), jadi tidak ada
+    ambiguitas "ambil yang pertama ketemu" seperti pada pencarian slug-saja.
+    """
+    query = (
+        select(LetterType)
+        .join(Unit, Unit.id == LetterType.unit_id)  # type: ignore[arg-type]
+        .where(Unit.slug == unit_slug, LetterType.slug == type_slug)
+    )
+    if not include_deleted:
+        query = query.where(col(LetterType.deleted_at).is_(None))
+
+    letter_type = session.exec(query).first()
+    if not letter_type:
+        return None
+
+    fields = session.exec(
+        select(LetterField)
+        .where(LetterField.letter_type_id == letter_type.id)
         .order_by(col(LetterField.display_order))
     ).all()
 
