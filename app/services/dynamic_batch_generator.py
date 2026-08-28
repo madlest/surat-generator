@@ -31,8 +31,14 @@ class DynamicBatchGenerationError(Exception):
 
 def _format_custom_values(values: dict, fields: list[LetterField]) -> dict:
     field_types = {field.field_key: field.field_type for field in fields}
+    # Field manual (from_template=False) — mis. nomor WA / email tujuan — TIDAK
+    # ikut ke context docxtpl. Nilainya tetap dikumpulkan & divalidasi di
+    # dynamic_fields.py, cuma tidak dirender ke badan surat.
+    template_keys = {field.field_key for field in fields if field.from_template}
     formatted = {}
     for key, value in values.items():
+        if key not in template_keys:
+            continue
         if value is None:
             # Field opsional yang dikosongkan. Tanpa ini, Jinja merender None
             # jadi teks "None" di badan surat — jelek dan senyap.
@@ -71,7 +77,12 @@ def build_context(
 
 
 def _build_recipient_label(recipient_values: dict, recipient_fields: list[LetterField]) -> str:
-    ordered_fields = sorted(recipient_fields, key=lambda f: f.display_order)
+    # Hanya field template yang dipakai menyusun label/nama file — field manual
+    # (nomor WA / email) tidak identik dengan "nama penerima" dan bikin nama
+    # file jelek.
+    ordered_fields = sorted(
+        (f for f in recipient_fields if f.from_template), key=lambda f: f.display_order
+    )
     parts = [str(recipient_values[f.field_key]) for f in ordered_fields if recipient_values.get(f.field_key)]
     return " - ".join(parts)
 

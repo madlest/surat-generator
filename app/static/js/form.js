@@ -3,6 +3,7 @@
 
 import {
   dateFieldMarkup,
+  htmlInputType,
   renumberSteps,
   setText,
   setupDateField,
@@ -46,7 +47,7 @@ function batchFieldMarkup(field) {
   if (field.field_type === "date") {
     return dateFieldMarkup(id, field.label, field.required);
   }
-  const inputType = field.field_type === "number" ? "number" : "text";
+  const inputType = htmlInputType(field.field_type);
   return `
     <div class="field">
       <span class="field-label-text" data-label-for="${id}"></span>
@@ -320,7 +321,7 @@ function setupRecipientSection(recipientFields) {
         label.setAttribute("for", inputId);
         label.textContent = field.label;
         const input = document.createElement("input");
-        input.type = field.field_type === "number" ? "number" : "text";
+        input.type = htmlInputType(field.field_type);
         input.id = inputId;
         input.dataset.fieldKey = field.field_key;
         input.dataset.required = String(!!field.required);

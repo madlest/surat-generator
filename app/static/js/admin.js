@@ -169,8 +169,12 @@ export async function openEditWizard(unitSlug, slug) {
       `?unit_slug=${encodeURIComponent(letterType.unit_slug)}`;
     document.getElementById("admin-download-template-link").style.display = "flex";
 
+    // Hanya field template yang jadi "daftar variabel"; field manual di-render
+    // terpisah oleh renderAdminFieldsStep dari existingFields.
     renderAdminFieldsStep(
-      (letterType.fields || []).map((f) => f.field_key),
+      (letterType.fields || [])
+        .filter((f) => f.from_template !== false)
+        .map((f) => f.field_key),
       letterType.fields || [],
     );
     document.getElementById("admin-step-2").style.display = "block";
@@ -250,15 +254,24 @@ document
 function bacaFieldsDariForm() {
   return Array.from(
     document.querySelectorAll("#admin-fields-list .admin-field-row"),
-  ).map((row) => ({
-    field_key: row.dataset.fieldKey,
-    label:
-      row.querySelector(".admin-field-label-input").value.trim() ||
-      row.dataset.fieldKey,
-    field_type: row.querySelector(".admin-field-type-select").value,
-    level: row.querySelector(".admin-field-level-select").value,
-    required: row.querySelector(".admin-field-required-checkbox").checked,
-  }));
+  ).map((row) => {
+    const isManual = row.classList.contains("admin-field-row-manual");
+    const keyInput = row.querySelector(".admin-field-key-input");
+    const field_key = isManual
+      ? keyInput.value.trim()
+      : row.dataset.fieldKey;
+    return {
+      field_key,
+      label:
+        row.querySelector(".admin-field-label-input").value.trim() || field_key,
+      field_type: row.querySelector(".admin-field-type-select").value,
+      level: row.querySelector(".admin-field-level-select").value,
+      required: row.querySelector(".admin-field-required-checkbox").checked,
+      from_template: !isManual,
+      // Stage A: belum ada UI untuk ini, semua field diisi admin.
+      filled_by: "admin",
+    };
+  });
 }
 
 document
@@ -320,13 +333,172 @@ function humanizeKey(key) {
     .join(" ");
 }
 
+const FIELD_TYPE_OPTIONS = [
+  ["text", "Teks"],
+  ["date", "Tanggal"],
+  ["number", "Angka"],
+  ["email", "Email"],
+  ["phone", "Telepon / WA"],
+];
+
+let manualFieldCounter = 0;
+
 /**
- * Bangun satu baris pengaturan untuk tiap variabel yang terdeteksi di template.
+ * Bangun satu baris pengaturan field.
  *
- * `existingFields` diisi saat menyunting: konfigurasi yang sudah tersimpan
- * dipakai sebagai nilai awal, dicocokkan berdasarkan field_key. Variabel yang
- * belum punya konfigurasi (misal baru muncul setelah template diganti) jatuh ke
- * nilai bawaan seperti saat menambah jenis surat baru.
+ * - Field template (`isManual=false`): key ditampilkan sebagai `{{ key }}`
+ *   yang tidak bisa disunting, tidak bisa dihapus (ditentukan template).
+ * - Field manual (`isManual=true`): admin mengetik key-nya sendiri dan bisa
+ *   menghapus barisnya. `from_template` yang tersimpan = !isManual.
+ *
+ * `existing` = konfigurasi tersimpan (saat menyunting), dipakai sebagai nilai awal.
+ */
+function makeFieldRow({ key = "", existing = null, isManual = false }) {
+  const row = document.createElement("div");
+  row.className = "admin-field-row" + (isManual ? " admin-field-row-manual" : "");
+  row.dataset.fieldKey = key;
+  row.setAttribute("aria-grabbed", "false");
+
+  const uid = isManual ? `m${++manualFieldCounter}` : key;
+
+  const dragHandle = document.createElement("button");
+  dragHandle.type = "button";
+  dragHandle.className = "drag-handle";
+  dragHandle.draggable = true;
+  dragHandle.title = "Seret untuk mengubah urutan";
+  dragHandle.setAttribute("aria-label", "Seret untuk mengubah urutan");
+  dragHandle.innerHTML = "&#9776;";
+  dragHandle.addEventListener("dragstart", (event) => {
+    draggedFieldRow = row;
+    row.classList.add("dragging");
+    row.setAttribute("aria-grabbed", "true");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", row.dataset.fieldKey || uid);
+  });
+  dragHandle.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    row.setAttribute("aria-grabbed", "false");
+    draggedFieldRow = null;
+  });
+
+  const labelId = `admin-label-${uid}`;
+  const typeId = `admin-type-${uid}`;
+  const levelId = `admin-level-${uid}`;
+
+  // Kolom key + label.
+  const keyCol = document.createElement("div");
+  keyCol.className = "field";
+  if (isManual) {
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.className = "admin-field-key-input";
+    keyInput.placeholder = "key, mis. nomor_wa";
+    keyInput.setAttribute("aria-label", "Key field manual");
+    keyInput.value = key;
+    // Key dipakai sebagai nama kolom form/CSV — jaga tetap bersih & sinkron
+    // ke dataset supaya drag-reorder tidak kehilangan identitasnya.
+    keyInput.addEventListener("input", () => {
+      keyInput.value = keyInput.value
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, "");
+      row.dataset.fieldKey = keyInput.value;
+    });
+    keyCol.appendChild(keyInput);
+  } else {
+    const keyLabel = document.createElement("label");
+    keyLabel.className = "field-key-label";
+    keyLabel.setAttribute("for", labelId);
+    keyLabel.textContent = `{{ ${key} }}`;
+    keyLabel.title = `{{ ${key} }}`;
+    keyCol.appendChild(keyLabel);
+  }
+  const labelInput = document.createElement("input");
+  labelInput.type = "text";
+  labelInput.id = labelId;
+  labelInput.className = "admin-field-label-input";
+  labelInput.placeholder = "Label yang tampil di form";
+  labelInput.value = existing ? existing.label : key ? humanizeKey(key) : "";
+  keyCol.appendChild(labelInput);
+
+  // Kolom tipe.
+  const typeCol = document.createElement("div");
+  typeCol.className = "field";
+  const typeLabel = setText(document.createElement("label"), "Tipe");
+  typeLabel.setAttribute("for", typeId);
+  const typeSelect = document.createElement("select");
+  typeSelect.id = typeId;
+  typeSelect.className = "admin-field-type-select";
+  FIELD_TYPE_OPTIONS.forEach(([value, text]) => {
+    typeSelect.appendChild(new Option(text, value));
+  });
+  if (existing) typeSelect.value = existing.field_type;
+  typeCol.append(typeLabel, typeSelect);
+
+  // Kolom level.
+  const levelCol = document.createElement("div");
+  levelCol.className = "field";
+  const levelLabel = setText(document.createElement("label"), "Level");
+  levelLabel.setAttribute("for", levelId);
+  const levelSelect = document.createElement("select");
+  levelSelect.id = levelId;
+  levelSelect.className = "admin-field-level-select";
+  [
+    ["batch", "Sekali per surat"],
+    ["recipient", "Per penerima"],
+  ].forEach(([value, text]) => {
+    levelSelect.appendChild(new Option(text, value));
+  });
+  if (existing) levelSelect.value = existing.level;
+  levelCol.append(levelLabel, levelSelect);
+
+  // Kolom wajib.
+  const requiredCol = document.createElement("label");
+  requiredCol.className = "admin-required-toggle";
+  const requiredCheckbox = document.createElement("input");
+  requiredCheckbox.type = "checkbox";
+  requiredCheckbox.id = `admin-required-${uid}`;
+  requiredCheckbox.className = "admin-field-required-checkbox";
+  requiredCheckbox.checked = existing ? !!existing.required : true;
+  requiredCol.append(requiredCheckbox, document.createTextNode("Wajib"));
+  // Tanggal di surat resmi selalu wajib — kunci checkbox-nya kalau tipe field
+  // "date", lepas lagi kalau bukan.
+  const syncRequiredLock = () => {
+    const isDate = typeSelect.value === "date";
+    if (isDate) requiredCheckbox.checked = true;
+    requiredCheckbox.disabled = isDate;
+    requiredCol.title = isDate ? "Field tanggal selalu wajib diisi." : "";
+  };
+  typeSelect.addEventListener("change", syncRequiredLock);
+  syncRequiredLock();
+
+  // Kolom 6: sel hapus. Selalu ada (kosong untuk baris template) supaya kolom
+  // key/label/tipe/level sejajar persis di semua baris.
+  const removeCell = document.createElement("div");
+  removeCell.className = "admin-field-remove-cell";
+  if (isManual) {
+    // Tombol hapus seragam dengan form SPM (.remove-btn: ikon tempat sampah,
+    // merah solid).
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "remove-btn";
+    removeBtn.title = "Hapus field ini";
+    removeBtn.setAttribute("aria-label", "Hapus field manual");
+    removeBtn.innerHTML = "&#128465;";
+    removeBtn.addEventListener("click", () => row.remove());
+    removeCell.appendChild(removeBtn);
+  }
+
+  row.append(dragHandle, keyCol, typeCol, levelCol, requiredCol, removeCell);
+
+  return row;
+}
+
+/**
+ * Render ulang seluruh langkah konfigurasi field: satu baris per variabel
+ * template, lalu baris-baris field manual yang sudah tersimpan.
+ *
+ * `existingFields` diisi saat menyunting (dan saat template diganti di tengah
+ * jalan) supaya isian yang sudah dikerjakan tidak hilang.
  */
 function renderAdminFieldsStep(variables, existingFields = []) {
   const list = document.getElementById("admin-fields-list");
@@ -334,9 +506,8 @@ function renderAdminFieldsStep(variables, existingFields = []) {
   document.getElementById("admin-no-vars-note").style.display =
     variables.length === 0 ? "block" : "none";
 
-  // Ditimpa (bukan addEventListener) supaya listener lama tidak menumpuk
-  // setiap kali fungsi ini dipanggil ulang — baik saat wizard dibuka lagi
-  // maupun saat template diganti di tengah penyuntingan.
+  // Ditimpa (bukan addEventListener) supaya listener lama tidak menumpuk tiap
+  // kali fungsi ini dipanggil ulang.
   list.ondragover = (event) => {
     if (!draggedFieldRow) return;
     event.preventDefault();
@@ -354,116 +525,27 @@ function renderAdminFieldsStep(variables, existingFields = []) {
   const tersimpan = new Map(existingFields.map((f) => [f.field_key, f]));
 
   variables.forEach((key) => {
-    const awal = tersimpan.get(key);
-    const row = document.createElement("div");
-    row.className = "admin-field-row";
-    row.dataset.fieldKey = key;
-    row.setAttribute("aria-grabbed", "false");
-
-    const dragHandle = document.createElement("button");
-    dragHandle.type = "button";
-    dragHandle.className = "drag-handle";
-    dragHandle.draggable = true;
-    dragHandle.title = "Seret untuk mengubah urutan";
-    dragHandle.setAttribute("aria-label", "Seret untuk mengubah urutan");
-    dragHandle.innerHTML = "&#9776;";
-    dragHandle.addEventListener("dragstart", (event) => {
-      draggedFieldRow = row;
-      row.classList.add("dragging");
-      row.setAttribute("aria-grabbed", "true");
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", key);
-    });
-    dragHandle.addEventListener("dragend", () => {
-      row.classList.remove("dragging");
-      row.setAttribute("aria-grabbed", "false");
-      draggedFieldRow = null;
-    });
-
-    // Tiap kontrol diberi id sendiri supaya label bisa ditautkan dengannya.
-    // Tanpa itu pembaca layar tidak tahu label mana milik kontrol yang mana.
-    const labelId = `admin-label-${key}`;
-    const typeId = `admin-type-${key}`;
-    const levelId = `admin-level-${key}`;
-
-    const keyCol = document.createElement("div");
-    keyCol.className = "field";
-    const keyLabel = document.createElement("label");
-    keyLabel.className = "field-key-label";
-    keyLabel.setAttribute("for", labelId);
-    keyLabel.textContent = `{{ ${key} }}`;
-    keyLabel.title = `{{ ${key} }}`;
-    const labelInput = document.createElement("input");
-    labelInput.type = "text";
-    labelInput.id = labelId;
-    labelInput.className = "admin-field-label-input";
-    labelInput.value = awal ? awal.label : humanizeKey(key);
-    keyCol.append(keyLabel, labelInput);
-
-    const typeCol = document.createElement("div");
-    typeCol.className = "field";
-    const typeLabel = setText(document.createElement("label"), "Tipe");
-    typeLabel.setAttribute("for", typeId);
-    const typeSelect = document.createElement("select");
-    typeSelect.id = typeId;
-    typeSelect.className = "admin-field-type-select";
-    [
-      ["text", "Teks"],
-      ["date", "Tanggal"],
-      ["number", "Angka"],
-    ].forEach(([value, text]) => {
-      const opt = new Option(text, value);
-      typeSelect.appendChild(opt);
-    });
-    if (awal) typeSelect.value = awal.field_type;
-    typeCol.append(typeLabel, typeSelect);
-
-    const levelCol = document.createElement("div");
-    levelCol.className = "field";
-    const levelLabel = setText(
-      document.createElement("label"),
-      "Level",
-    );
-    levelLabel.setAttribute("for", levelId);
-    const levelSelect = document.createElement("select");
-    levelSelect.id = levelId;
-    levelSelect.className = "admin-field-level-select";
-    [
-      ["batch", "Sekali per surat"],
-      ["recipient", "Per penerima"],
-    ].forEach(([value, text]) => {
-      const opt = new Option(text, value);
-      levelSelect.appendChild(opt);
-    });
-    if (awal) levelSelect.value = awal.level;
-    levelCol.append(levelLabel, levelSelect);
-
-    const requiredCol = document.createElement("label");
-    requiredCol.className = "admin-required-toggle";
-    const requiredCheckbox = document.createElement("input");
-    requiredCheckbox.type = "checkbox";
-    requiredCheckbox.id = `admin-required-${key}`;
-    requiredCheckbox.className = "admin-field-required-checkbox";
-    requiredCheckbox.checked = awal ? !!awal.required : true;
-    requiredCol.append(
-      requiredCheckbox,
-      document.createTextNode("Wajib"),
-    );
-    // Tanggal di surat resmi selalu wajib — kunci checkbox-nya kalau
-    // tipe field diubah jadi "date", dan lepas lagi kalau bukan.
-    const syncRequiredLock = () => {
-        const isDate = typeSelect.value === "date";
-        if (isDate) requiredCheckbox.checked = true;
-        requiredCheckbox.disabled = isDate;
-        requiredCol.title = isDate ? "Field tanggal selalu wajib diisi." : "";
-    };
-    typeSelect.addEventListener("change", syncRequiredLock);
-    syncRequiredLock();
-
-    row.append(dragHandle, keyCol, typeCol, levelCol, requiredCol);
-    list.appendChild(row);
+    list.appendChild(makeFieldRow({ key, existing: tersimpan.get(key) }));
   });
+
+  // Field manual yang sudah tersimpan tidak akan pernah cocok dengan hasil
+  // scan template, jadi harus ditambahkan terpisah supaya tidak hilang.
+  existingFields
+    .filter((f) => f.from_template === false)
+    .forEach((f) => {
+      list.appendChild(
+        makeFieldRow({ key: f.field_key, existing: f, isManual: true }),
+      );
+    });
 }
+
+document
+  .getElementById("admin-add-manual-field-btn")
+  .addEventListener("click", () => {
+    document
+      .getElementById("admin-fields-list")
+      .appendChild(makeFieldRow({ isManual: true }));
+  });
 
 document.getElementById("admin-name").addEventListener("input", (e) => {
   if (!slugManuallyEdited) {

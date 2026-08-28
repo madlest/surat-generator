@@ -6,6 +6,15 @@ export function setText(el, text) {
   return el;
 }
 
+// Tipe <input> HTML untuk sebuah FieldType. Tanggal ditangani terpisah
+// (dateFieldMarkup), jadi tidak perlu di sini.
+export function htmlInputType(fieldType) {
+  if (fieldType === "number") return "number";
+  if (fieldType === "email") return "email";
+  if (fieldType === "phone") return "tel";
+  return "text";
+}
+
 export function formatDateIndonesia(value) {
   if (!value) return "";
   const [year, month, day] = value.split("-");

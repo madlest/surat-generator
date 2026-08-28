@@ -11,7 +11,7 @@ from sqlmodel import Session, col, select
 
 from app.core.database import engine
 from app.dependencies import get_current_user, scope_unit_id
-from app.models.letter_type import FieldLevel, FieldType, LetterType, LetterField
+from app.models.letter_type import FieldFiller, FieldLevel, FieldType, LetterType, LetterField
 from app.models.organization import Unit, User, UserRole
 from app.services.letter_type_repo import get_letter_type_with_fields
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
@@ -149,6 +149,7 @@ def _normalize_fields_config(fields_config: str) -> list[dict]:
 
     valid_types = {t.value for t in FieldType}
     valid_levels = {level.value for level in FieldLevel}
+    valid_fillers = {f.value for f in FieldFiller}
     seen_keys: set[str] = set()
     normalized: list[dict] = []
 
@@ -177,6 +178,26 @@ def _normalize_fields_config(fields_config: str) -> list[dict]:
                 detail=f"Level '{level}' pada field '{field_key}' tidak dikenal.",
             )
 
+        # from_template=False untuk field manual yang dibuat admin (mis. nomor
+        # WA / email tujuan) — tidak diinjeksikan ke docx. Field manual wajib
+        # punya key yang aman dipakai sebagai nama kolom form/CSV.
+        from_template = bool(field_data.get("from_template", True))
+        if not from_template and not SLUG_PATTERN.match(field_key.replace("_", "-")):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Key field manual '{field_key}' hanya boleh huruf kecil, angka, "
+                    "garis bawah, dan tanda hubung."
+                ),
+            )
+
+        filled_by = str(field_data.get("filled_by", FieldFiller.admin.value))
+        if filled_by not in valid_fillers:
+            raise HTTPException(
+                status_code=400,
+                detail=f"filled_by '{filled_by}' pada field '{field_key}' tidak dikenal.",
+            )
+
         normalized.append(
             {
                 "field_key": field_key,
@@ -186,6 +207,8 @@ def _normalize_fields_config(fields_config: str) -> list[dict]:
                 # Tanggal di surat resmi tidak boleh kosong: paksa wajib apa pun
                 # yang dikirim klien, supaya tidak bisa di-bypass lewat curl.
                 "required": True if field_type == FieldType.date else bool(field_data.get("required", True)),
+                "from_template": from_template,
+                "filled_by": filled_by,
             }
         )
 

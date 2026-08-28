@@ -2,9 +2,54 @@
 
 import csv
 import io
+import re
 from datetime import datetime
 
 from app.models.letter_type import FieldType, LetterField
+
+
+# Sengaja longgar: validasi email yang sebenarnya adalah "apakah kirimannya
+# nyampe" — itu baru ketahuan saat pengiriman. Di sini cukup menyaring
+# kesalahan ketik yang jelas.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Karakter pemisah yang lazim diketik orang di nomor telepon.
+_PHONE_SEP_RE = re.compile(r"[\s\-().]")
+
+
+def validate_email(raw: str, label: str) -> str:
+    email = str(raw).strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise ValueError(f"'{label}' bukan alamat email yang valid.")
+    return email
+
+
+def normalize_phone_id(raw: str, label: str) -> str:
+    """
+    Normalisasi nomor HP Indonesia ke format E.164 (+62…). Menerima 08xx,
+    8xx, +62xx, 62xx, 0062xx, dengan/atau tanpa spasi/strip/kurung.
+    """
+    cleaned = _PHONE_SEP_RE.sub("", str(raw).strip())
+
+    if cleaned.startswith("+62"):
+        national = cleaned[3:]
+    elif cleaned.startswith("0062"):
+        national = cleaned[4:]
+    elif cleaned.startswith("62"):
+        national = cleaned[2:]
+    elif cleaned.startswith("0"):
+        national = cleaned[1:]
+    else:
+        national = cleaned
+
+    if not national.isdigit():
+        raise ValueError(f"'{label}' hanya boleh berisi angka (dan opsional +62 / 08 di depan).")
+    if not national.startswith("8"):
+        raise ValueError(f"'{label}' sepertinya bukan nomor HP Indonesia — harus diawali 08 atau +62 8.")
+    if not (9 <= len(national) <= 12):
+        raise ValueError(f"'{label}' panjang nomornya tidak wajar untuk nomor HP Indonesia.")
+
+    return "+62" + national
 
 
 class FieldValidationError(Exception):
@@ -46,6 +91,12 @@ def parse_field_value(raw_value, field: LetterField):
                 return float(value_str)
             except ValueError:
                 raise ValueError(f"'{field.label}' harus berupa angka.")
+
+    if field.field_type == FieldType.email:
+        return validate_email(raw_value, field.label)
+
+    if field.field_type == FieldType.phone:
+        return normalize_phone_id(raw_value, field.label)
 
     return str(raw_value).strip()
 
