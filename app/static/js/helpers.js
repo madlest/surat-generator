@@ -15,6 +15,30 @@ export function htmlInputType(fieldType) {
   return "text";
 }
 
+// Placeholder untuk input field dinamis. Email & telepon dapat contoh format;
+// tipe lain dapat "Isikan <label>" — seragam antara field batch & penerima.
+export function fieldPlaceholder(fieldType, label) {
+  if (fieldType === "email") return "nama@email.com";
+  if (fieldType === "phone") return "Contoh: 081234567890";
+  return label ? `Isikan ${label.toLowerCase()}` : "";
+}
+
+// Tebak tipe field dari nama key-nya — dipakai sebagai DEFAULT di wizard admin
+// (admin tetap bisa menggantinya). Substring, case-insensitive.
+export function guessFieldType(key) {
+  const k = String(key).toLowerCase();
+  if (/tanggal|tgl/.test(k)) return "date";
+  if (/email|surel/.test(k)) return "email";
+  if (
+    /telepon|telpon|telp|whatsapp|phone|nomor.?wa|no.?wa|nomor.?hp|no.?hp|(^|[_-])wa($|[_-])|(^|[_-])hp($|[_-])/.test(
+      k,
+    )
+  ) {
+    return "phone";
+  }
+  return "text";
+}
+
 export function formatDateIndonesia(value) {
   if (!value) return "";
   const [year, month, day] = value.split("-");

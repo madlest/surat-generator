@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Surat Generator">
+  <rect width="32" height="32" rx="8" fill="#147089"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 7H9.5A2 2 0 0 0 7.5 9v14A2 2 0 0 0 9.5 25h13A2 2 0 0 0 24.5 23V13.5z"/>
+    <path d="M18 7v4.5A2 2 0 0 0 20 13.5h4.5"/>
+    <path d="M11.5 15.5h4.75"/>
+    <path d="M11.5 19h9"/>
+    <path d="M11.5 22.5h9"/>
+  </g>
+</svg>

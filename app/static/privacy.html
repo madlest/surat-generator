@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kebijakan Privasi &mdash; Surat Generator</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #ffffff;
+        --page-bg: #edf6f7;
+        --ink: #1b2a2e;
+        --ink-soft: #5c7278;
+        --teal: #147089;
+        --line: #dce6e8;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #152326;
+          --page-bg: #0f1a1c;
+          --ink: #e8f1f2;
+          --ink-soft: #a9c0c4;
+          --teal: #55b4c8;
+          --line: #34535a;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+        padding: 48px 20px 96px;
+      }
+      main {
+        max-width: 680px;
+        margin: 0 auto;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-top: 3px solid var(--teal);
+        border-radius: 3px;
+        padding: 44px 44px 48px;
+      }
+      h1 {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 700;
+        font-size: 27px;
+        margin: 0 0 6px;
+      }
+      .updated {
+        color: var(--ink-soft);
+        font-size: 13px;
+        margin: 0 0 28px;
+      }
+      h2 {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        font-size: 18px;
+        margin: 30px 0 8px;
+      }
+      p, li { font-size: 14.5px; }
+      ul { padding-left: 20px; }
+      li { margin: 5px 0; }
+      a { color: var(--teal); }
+      code {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 12.5px;
+        background: var(--page-bg);
+        padding: 1px 5px;
+        border-radius: 3px;
+      }
+      .back {
+        display: inline-block;
+        margin-top: 32px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--teal);
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Kebijakan Privasi</h1>
+      <p class="updated">Surat Generator &middot; Terakhir diperbarui: 28 Agustus 2026</p>
+
+      <p>
+        Surat Generator adalah aplikasi internal untuk membuat dan mengirim surat
+        resmi di lingkungan Universitas Muhammadiyah Banjarmasin. Aplikasi ini
+        hanya untuk staf yang telah diundang oleh administrator; bukan layanan
+        publik. Halaman ini menjelaskan data apa yang diakses aplikasi dan untuk
+        apa.
+      </p>
+
+      <h2>Data yang kami akses dari akun Google Anda</h2>
+      <ul>
+        <li>
+          <strong>Alamat email, nama, dan foto profil</strong> &mdash; dipakai
+          untuk mengenali Anda saat login dan menampilkan identitas Anda di
+          aplikasi.
+        </li>
+        <li>
+          <strong>Izin mengirim email atas nama Anda</strong> (scope
+          <code>gmail.send</code>) &mdash; dipakai <em>hanya</em> untuk mengirim
+          surat yang Anda buat sendiri di aplikasi ke penerima yang Anda
+          tentukan, saat Anda menekan tombol kirim. Aplikasi tidak membaca,
+          menghapus, atau mengubah isi kotak masuk Anda, dan tidak mengirim
+          apa pun tanpa tindakan Anda.
+        </li>
+      </ul>
+
+      <h2>Data yang kami simpan</h2>
+      <ul>
+        <li>Nama, alamat email, foto profil, unit kerja, peran, dan waktu login terakhir Anda.</li>
+        <li>
+          Konfigurasi jenis surat dan template dokumen yang dibuat oleh
+          administrator.
+        </li>
+        <li>
+          Catatan pengiriman surat (kepada siapa, kapan, berhasil/gagal) untuk
+          keperluan audit.
+        </li>
+      </ul>
+      <p>
+        Data penerima dan berkas surat yang di-<em>generate</em> diproses
+        sementara selama pembuatan dan pengiriman, lalu dibersihkan; tidak
+        disimpan permanen.
+      </p>
+
+      <h2>Berbagi data</h2>
+      <p>
+        Kami tidak menjual data Anda dan tidak membagikannya ke pihak ketiga
+        untuk tujuan periklanan. Email yang dikirim aplikasi disampaikan melalui
+        layanan Google (Gmail API) menggunakan akun Anda sendiri. Penggunaan dan
+        pengalihan informasi yang diterima aplikasi ini dari Google API akan
+        mengikuti
+        <a
+          href="https://developers.google.com/terms/api-services-user-data-policy"
+          target="_blank"
+          rel="noopener"
+          >Kebijakan Data Pengguna Layanan API Google</a
+        >, termasuk persyaratan Penggunaan Terbatas (Limited Use).
+      </p>
+
+      <h2>Penyimpanan &amp; keamanan</h2>
+      <p>
+        Data disimpan di server yang dikelola pengembang aplikasi. Sesi login
+        memakai cookie bertanda tangan. Akses dapat dicabut administrator kapan
+        saja, dan Anda dapat mencabut izin aplikasi lewat
+        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener"
+          >Setelan Akun Google &rsaquo; Aplikasi pihak ketiga</a
+        >.
+      </p>
+
+      <h2>Kontak</h2>
+      <p>
+        Pertanyaan terkait privasi:
+        <a href="mailto:muhammad_tri_ml@umbjm.ac.id">muhammad_tri_ml@umbjm.ac.id</a>.
+      </p>
+
+      <a class="back" href="/">&larr; Kembali ke aplikasi</a>
+    </main>
+  </body>
+</html>

@@ -5,7 +5,7 @@
 // Bedanya saat menyunting: template boleh tidak diganti (konfigurasi field yang
 // tersimpan langsung ditampilkan), dan kiriman memakai PUT alih-alih POST.
 
-import { setText } from "./helpers.js";
+import { guessFieldType, setText } from "./helpers.js";
 import { showView } from "./views.js";
 import { loadDashboard } from "./dashboard.js";
 import { getCurrentUser } from "./auth.js";
@@ -402,6 +402,11 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
         .toLowerCase()
         .replace(/[^a-z0-9_-]/g, "");
       row.dataset.fieldKey = keyInput.value;
+      // Selama admin belum mengubah tipe sendiri, ikuti tebakan dari key.
+      if (!typeSelect.dataset.userSet) {
+        typeSelect.value = guessFieldType(keyInput.value);
+        syncRequiredLock();
+      }
     });
     keyCol.appendChild(keyInput);
   } else {
@@ -431,7 +436,12 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
   FIELD_TYPE_OPTIONS.forEach(([value, text]) => {
     typeSelect.appendChild(new Option(text, value));
   });
-  if (existing) typeSelect.value = existing.field_type;
+  if (existing) {
+    typeSelect.value = existing.field_type;
+    typeSelect.dataset.userSet = "1"; // jangan timpa konfigurasi tersimpan
+  } else if (key) {
+    typeSelect.value = guessFieldType(key);
+  }
   typeCol.append(typeLabel, typeSelect);
 
   // Kolom level.
@@ -468,7 +478,10 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
     requiredCheckbox.disabled = isDate;
     requiredCol.title = isDate ? "Field tanggal selalu wajib diisi." : "";
   };
-  typeSelect.addEventListener("change", syncRequiredLock);
+  typeSelect.addEventListener("change", () => {
+    typeSelect.dataset.userSet = "1";
+    syncRequiredLock();
+  });
   syncRequiredLock();
 
   // Kolom 6: sel hapus. Selalu ada (kosong untuk baris template) supaya kolom

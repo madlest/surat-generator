@@ -3,6 +3,7 @@
 
 import {
   dateFieldMarkup,
+  fieldPlaceholder,
   htmlInputType,
   renumberSteps,
   setText,
@@ -48,10 +49,15 @@ function batchFieldMarkup(field) {
     return dateFieldMarkup(id, field.label, field.required);
   }
   const inputType = htmlInputType(field.field_type);
+  const placeholder = fieldPlaceholder(field.field_type, field.label).replace(
+    /"/g,
+    "&quot;",
+  );
   return `
     <div class="field">
       <span class="field-label-text" data-label-for="${id}"></span>
-      <input type="${inputType}" id="${id}" ${field.required ? "required" : ""}>
+      <input type="${inputType}" id="${id}" ${field.required ? "required" : ""}
+        ${placeholder ? `placeholder="${placeholder}"` : ""}>
     </div>
   `;
 }
@@ -326,7 +332,7 @@ function setupRecipientSection(recipientFields) {
         input.dataset.fieldKey = field.field_key;
         input.dataset.required = String(!!field.required);
         input.required = !!field.required;
-        input.placeholder = `Isikan ${field.label.toLowerCase()}`;
+        input.placeholder = fieldPlaceholder(field.field_type, field.label);
         wrapper.append(label, input);
         row.appendChild(wrapper);
       }
@@ -374,6 +380,15 @@ function setupRecipientSection(recipientFields) {
     dateNote.textContent =
       "Untuk kolom bertipe tanggal, isi dengan format DD-MM-YYYY (mis. 22-08-2026).";
     modeCsv.querySelector(".csv-hint").after(dateNote);
+  }
+  if (recipientFields.some((f) => f.field_type === "phone")) {
+    const phoneNote = document.createElement("small");
+    phoneNote.className = "field-hint";
+    phoneNote.style.display = "block";
+    phoneNote.style.marginTop = "4px";
+    phoneNote.textContent =
+      "Untuk kolom nomor telepon: kalau dibuka di Excel/Spreadsheet, set format kolomnya jadi Teks supaya angka 0 di depan tidak hilang. Tanpa 0 pun tetap terbaca (mis. 81234567890 = 081234567890).";
+    modeCsv.querySelector(".csv-hint").after(phoneNote);
   }
 
   modeButtons.forEach((btn) => {

@@ -17,3 +17,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/")
 def serve_frontend():
     return FileResponse("app/static/index.html")
+
+
+@app.get("/privacy")
+def serve_privacy():
+    # Halaman publik (tanpa login) — URL-nya dipakai di OAuth consent screen
+    # Google sebagai "Application privacy policy link".
+    return FileResponse("app/static/privacy.html")
