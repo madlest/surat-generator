@@ -19,6 +19,7 @@ SUPERADMIN_PATHS = [
     ("post", "/admin/users/invite"),
     ("patch", "/admin/users/1/deactivate"),
     ("patch", "/admin/users/1/reactivate"),
+    ("delete", "/admin/users/1"),
 ]
 
 
@@ -246,3 +247,46 @@ def test_nonaktifkan_admin_biasa_lalu_reactivate(client, login, superadmin, admi
 def test_deactivate_user_tidak_ada_404(client, login, superadmin):
     login(superadmin)
     assert client.patch("/admin/users/12345/deactivate").status_code == 404
+
+
+# --- Hapus admin ----------------------------------------------------------
+
+def test_hapus_admin_biasa(client, login, superadmin, admin):
+    login(superadmin)
+    assert client.delete(f"/admin/users/{admin.id}").status_code == 200
+    emails = [u["email"] for u in client.get("/admin/users").json()]
+    assert admin.email not in emails
+
+
+def test_hapus_undangan_belum_login(client, login, superadmin, unit):
+    login(superadmin)
+    invited = client.post(
+        "/admin/users/invite",
+        json={"email": "salahketik@umbjm.ac.id", "role": "admin", "unit_id": unit.id},
+    ).json()
+    assert client.delete(f"/admin/users/{invited['id']}").status_code == 200
+
+
+def test_tidak_bisa_hapus_diri_sendiri(client, login, superadmin):
+    login(superadmin)
+    resp = client.delete(f"/admin/users/{superadmin.id}")
+    assert resp.status_code == 400
+    assert "sendiri" in resp.json()["detail"]
+
+
+def test_bisa_hapus_superadmin_lain_kalau_masih_ada_yang_aktif(client, login, superadmin, make_user):
+    other = make_user("super2@umbjm.ac.id", role=UserRole.superadmin)
+    login(superadmin)
+    assert client.delete(f"/admin/users/{other.id}").status_code == 200
+
+
+def test_bisa_hapus_superadmin_nonaktif_walau_tinggal_satu_yang_aktif(client, login, superadmin, make_user):
+    mati = make_user("super-mati@umbjm.ac.id", role=UserRole.superadmin, is_active=False)
+    login(superadmin)
+    # superadmin aktif tinggal 1 (yang login), tapi target nonaktif -> boleh
+    assert client.delete(f"/admin/users/{mati.id}").status_code == 200
+
+
+def test_hapus_user_tidak_ada_404(client, login, superadmin):
+    login(superadmin)
+    assert client.delete("/admin/users/12345").status_code == 404

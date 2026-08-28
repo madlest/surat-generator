@@ -254,3 +254,47 @@ def reactivate_user(user_id: int, _: User = Depends(require_superadmin)):
         session.add(target)
         session.commit()
         return {"id": target.id, "is_active": True}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: int, current: User = Depends(require_superadmin)):
+    """
+    Hapus baris User sepenuhnya — beda dari deactivate yang menyimpan jejak
+    (nama, last_login_at) supaya undangan lama tidak perlu diketik ulang.
+    Dipakai untuk membuang undangan salah ketik atau orang yang benar-benar
+    tidak akan kembali.
+
+    Dua pengaman:
+    - Tidak boleh menghapus akun sendiri (superadmin yang sedang login) —
+      sesinya langsung tidak valid di request berikutnya, foot-gun.
+    - Tidak boleh menghapus superadmin aktif terakhir. Dengan pengaman
+      pertama, jalur ini sebenarnya cuma bisa terpicu lewat hapus-diri-sendiri,
+      tapi tetap ditulis eksplisit sebagai lapis kedua (sejalan dengan
+      deactivate_user).
+    """
+    with Session(engine) as session:
+        target = session.get(User, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="User tidak ditemukan.")
+
+        if target.id == current.id:
+            raise HTTPException(status_code=400, detail="Tidak bisa menghapus akun Anda sendiri.")
+
+        if target.role == UserRole.superadmin and target.is_active:
+            active_superadmin_count = len(
+                session.exec(
+                    select(User).where(User.role == UserRole.superadmin, col(User.is_active).is_(True))
+                ).all()
+            )
+            if active_superadmin_count <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Tidak bisa menghapus satu-satunya superadmin yang aktif — "
+                        "sistem akan kehilangan akses admin sepenuhnya."
+                    ),
+                )
+
+        session.delete(target)
+        session.commit()
+        return {"id": user_id, "deleted": True}

@@ -281,19 +281,45 @@ function renderUsers(users) {
       badge.textContent = "Anda";
       actions.appendChild(badge);
     } else {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "sa-row-action";
-      btn.textContent = u.is_active ? "Nonaktifkan" : "Aktifkan";
-      btn.addEventListener("click", () =>
-        patchUser(u.id, u.is_active ? "deactivate" : "reactivate"),
+      actions.append(
+        mkAction(u.is_active ? "Nonaktifkan" : "Aktifkan", () =>
+          patchUser(u.id, u.is_active ? "deactivate" : "reactivate"),
+        ),
+        mkDeleteUserButton(u, actions),
       );
-      actions.appendChild(btn);
     }
 
     row.appendChild(actions);
     listEl.appendChild(row);
   });
+}
+
+function mkDeleteUserButton(u, actions) {
+  const btn = mkAction("Hapus", () => {
+    // Konfirmasi inline: isi kolom aksi diganti "Hapus permanen? Ya / Batal".
+    actions.innerHTML = "";
+    const label = document.createElement("span");
+    label.className = "sa-row-sub";
+    label.textContent = "Hapus permanen?";
+
+    const yes = mkAction("Ya", async () => {
+      yes.disabled = true;
+      try {
+        const res = await fetch(`/admin/users/${u.id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(detailOf(data, "Gagal menghapus admin."));
+        setStatus(document.getElementById("invite-status"), "success", `Admin ${u.email} dihapus.`);
+      } catch (err) {
+        setStatus(document.getElementById("invite-status"), "error", err.message);
+      }
+      await loadUsers();
+    });
+    yes.classList.add("sa-row-action-danger");
+
+    actions.append(label, yes, mkAction("Batal", () => loadUsers()));
+  });
+  btn.classList.add("sa-row-action-danger");
+  return btn;
 }
 
 async function patchUser(userId, action) {
