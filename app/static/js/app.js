@@ -2,11 +2,13 @@
 // lalu memuat dashboard pertama kali.
 
 import { initTheme } from "./theme.js";
+import { initAuth } from "./auth.js";
 import { showView } from "./views.js";
 import { initDashboard, loadDashboard } from "./dashboard.js";
 import { openForm } from "./form.js";
 import { openAdminWizard, openEditWizard } from "./admin.js";
 import { initArchive, loadArchive } from "./archive.js";
+import { initSuperadmin, openSuperadminPanel } from "./superadmin.js";
 
 initTheme();
 
@@ -28,6 +30,14 @@ function backToDashboard() {
 // Jenis surat yang baru dipulihkan harus langsung tampak di dashboard.
 initArchive({ onRestored: loadDashboard });
 
+initSuperadmin();
+document
+  .getElementById("topbar-superadmin-btn")
+  .addEventListener("click", openSuperadminPanel);
+document
+  .getElementById("back-to-dashboard-from-superadmin")
+  .addEventListener("click", backToDashboard);
+
 document.getElementById("open-archive-btn").addEventListener("click", () => {
   showView("view-archive");
   loadArchive();
@@ -43,4 +53,14 @@ document
   .getElementById("back-to-dashboard-from-admin")
   .addEventListener("click", backToDashboard);
 
-loadDashboard();
+// Tidak ada yang dimuat sebelum status login diketahui. Kalau belum login,
+// hanya view-login yang tampil; dashboard baru dimuat setelah /auth/me OK.
+initAuth({
+  onAuthed: () => {
+    showView("view-dashboard");
+    loadDashboard();
+  },
+  onAnonymous: () => {
+    showView("view-login");
+  },
+});

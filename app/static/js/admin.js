@@ -8,6 +8,7 @@
 import { setText } from "./helpers.js";
 import { showView } from "./views.js";
 import { loadDashboard } from "./dashboard.js";
+import { getCurrentUser } from "./auth.js";
 
 let selectedTemplateFile = null;
 let detectedVariables = [];
@@ -16,6 +17,10 @@ let slugManuallyEdited = false;
 // Slug asal disimpan terpisah dari isian slug karena keduanya bisa berbeda:
 // yang asal dipakai sebagai alamat endpoint, yang di isian adalah slug tujuan.
 let editingSlug = null;
+// unit_slug jenis surat yang sedang disunting. Dikirim sebagai ?unit_slug=
+// pada tiap panggilan by-slug supaya superadmin menyentuh jenis surat yang
+// tepat kalau ada dua unit berslug sama. null saat menambah baru.
+let editingUnitSlug = null;
 // Nama jenis surat yang sedang disunting, dipakai sebagai pembanding saat
 // admin mengetik ulang nama untuk mengonfirmasi penghapusan.
 let editingName = "";
@@ -38,7 +43,10 @@ function resetAdminWizard() {
   detectedVariables = [];
   slugManuallyEdited = false;
   editingSlug = null;
+  editingUnitSlug = null;
   editingName = "";
+  document.getElementById("admin-unit-field").hidden = true;
+  document.getElementById("admin-unit-select").innerHTML = "";
   document.getElementById("admin-delete-confirm").value = "";
   document.getElementById("admin-delete-btn").disabled = true;
   document.getElementById("admin-delete-status").className = "status";
@@ -91,13 +99,46 @@ function applyWizardMode(isEditing) {
     : "none";
 }
 
-export function openAdminWizard() {
+export async function openAdminWizard() {
   resetAdminWizard();
   applyWizardMode(false);
   showView("view-admin-add");
+  // Superadmin tidak terikat satu unit, jadi harus memilih unit pemilik saat
+  // membuat jenis surat baru. Admin biasa tidak melihat field ini — server
+  // otomatis memakai unitnya.
+  await populateUnitFieldForSuperadmin();
 }
 
-export async function openEditWizard(slug) {
+async function populateUnitFieldForSuperadmin() {
+  const user = getCurrentUser();
+  const field = document.getElementById("admin-unit-field");
+  if (!user || user.role !== "superadmin") {
+    field.hidden = true;
+    return;
+  }
+  const select = document.getElementById("admin-unit-select");
+  select.innerHTML = "";
+  try {
+    const res = await fetch("/admin/units");
+    if (!res.ok) throw new Error();
+    const units = await res.json();
+    if (units.length === 0) {
+      select.appendChild(new Option("— belum ada unit, buat dulu di Kelola Unit —", ""));
+      select.disabled = true;
+    } else {
+      select.disabled = false;
+      units.forEach((u) =>
+        select.appendChild(new Option(`${u.name} (${u.slug})`, String(u.id))),
+      );
+    }
+  } catch {
+    select.appendChild(new Option("— gagal memuat daftar unit —", ""));
+    select.disabled = true;
+  }
+  field.hidden = false;
+}
+
+export async function openEditWizard(unitSlug, slug) {
   resetAdminWizard();
   applyWizardMode(true);
   showView("view-admin-add");
@@ -107,11 +148,15 @@ export async function openEditWizard(slug) {
   statusEl.textContent = "Memuat konfigurasi…";
 
   try {
-    const res = await fetch(`/admin/letter-types/${encodeURIComponent(slug)}`);
+    const unitQuery = `?unit_slug=${encodeURIComponent(unitSlug)}`;
+    const res = await fetch(
+      `/admin/letter-types/${encodeURIComponent(slug)}${unitQuery}`,
+    );
     if (!res.ok) throw new Error("Gagal memuat jenis surat.");
     const letterType = await res.json();
 
     editingSlug = letterType.slug;
+    editingUnitSlug = letterType.unit_slug;
     editingName = letterType.name;
     setText(document.getElementById("admin-delete-target"), letterType.name);
     document.getElementById("admin-name").value = letterType.name;
@@ -120,7 +165,8 @@ export async function openEditWizard(slug) {
     slugManuallyEdited = true;
 
     document.getElementById("admin-download-template-link").href =
-      `/admin/letter-types/${encodeURIComponent(letterType.slug)}/template`;
+      `/admin/letter-types/${encodeURIComponent(letterType.slug)}/template` +
+      `?unit_slug=${encodeURIComponent(letterType.unit_slug)}`;
     document.getElementById("admin-download-template-link").style.display = "flex";
 
     renderAdminFieldsStep(
@@ -242,7 +288,8 @@ document
     try {
       const res = await fetch(
         `/admin/letter-types/${encodeURIComponent(editingSlug)}` +
-          `?confirm_name=${encodeURIComponent(confirmValue)}`,
+          `?confirm_name=${encodeURIComponent(confirmValue)}` +
+          `&unit_slug=${encodeURIComponent(editingUnitSlug)}`,
         { method: "DELETE" },
       );
       const data = await res.json();
@@ -451,6 +498,17 @@ document
       return;
     }
 
+    // Superadmin membuat jenis surat baru wajib memilih unit pemilik.
+    const unitField = document.getElementById("admin-unit-field");
+    const unitSelect = document.getElementById("admin-unit-select");
+    const perluPilihUnit = !sedangMenyunting && !unitField.hidden;
+    if (perluPilihUnit && !unitSelect.value) {
+      statusEl.className = "status show error";
+      statusEl.textContent =
+        "Pilih unit pemilik jenis surat ini. Tambahkan unit dulu di menu Kelola Unit & Admin kalau belum ada.";
+      return;
+    }
+
     const fieldsConfig = bacaFieldsDariForm();
 
     statusEl.className = "status show loading";
@@ -469,11 +527,14 @@ document
       let url = "/admin/letter-types";
       let method = "POST";
       if (sedangMenyunting) {
-        url = `/admin/letter-types/${encodeURIComponent(editingSlug)}`;
+        url =
+          `/admin/letter-types/${encodeURIComponent(editingSlug)}` +
+          `?unit_slug=${encodeURIComponent(editingUnitSlug)}`;
         method = "PUT";
         formData.append("new_slug", slug);
       } else {
         formData.append("slug", slug);
+        if (perluPilihUnit) formData.append("unit_id", unitSelect.value);
       }
 
       const res = await fetch(url, { method, body: formData });

@@ -13,8 +13,77 @@
   </head>
   <body>
     <div class="page">
+      <!-- ================= TOPBAR (tampil setelah login) ================= -->
+      <header class="topbar" id="topbar" hidden>
+        <div class="topbar-identity">
+          <span class="topbar-name" id="topbar-name"></span>
+          <span class="topbar-meta" id="topbar-meta"></span>
+        </div>
+        <nav class="topbar-actions">
+          <button
+            type="button"
+            class="link-btn"
+            id="topbar-superadmin-btn"
+            hidden
+          >
+            Kelola Unit &amp; Admin
+          </button>
+          <form method="post" action="/auth/logout" class="topbar-logout">
+            <button type="submit" class="link-btn">Keluar</button>
+          </form>
+        </nav>
+      </header>
+
+      <!-- ================= LOGIN ================= -->
+      <div class="view active" id="view-login">
+        <div class="login-card">
+          <div class="login-monogram" aria-hidden="true">SG</div>
+          <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
+          <h1 class="login-title">Surat Generator</h1>
+          <p class="login-tagline">
+            Susun dan kirim surat resmi dari template Word — tanpa mail merge
+            manual. Masuk untuk melanjutkan.
+          </p>
+
+          <a class="google-btn" href="/auth/login">
+            <svg
+              class="google-btn-icon"
+              viewBox="0 0 18 18"
+              width="18"
+              height="18"
+              aria-hidden="true"
+            >
+              <path
+                fill="#EA4335"
+                d="M9 3.48c1.69 0 2.83.73 3.48 1.34l2.54-2.48C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.91 2.26C4.6 5.05 6.62 3.48 9 3.48z"
+              />
+              <path
+                fill="#4285F4"
+                d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.1.83-.64 2.08-1.84 2.92l2.84 2.2c1.7-1.57 2.68-3.88 2.68-6.62z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M3.88 10.78A5.54 5.54 0 0 1 3.58 9c0-.62.11-1.22.29-1.78L.96 4.96A9.008 9.008 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.92-2.26z"
+              />
+              <path
+                fill="#34A853"
+                d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.4-1.57-5.12-3.74L.97 13.04C2.45 15.98 5.48 18 9 18z"
+              />
+            </svg>
+            <span>Masuk dengan Google</span>
+          </a>
+
+          <div class="status" id="login-status"></div>
+
+          <p class="login-note">
+            Hanya untuk akun <strong>@umbjm.ac.id</strong> yang sudah diundang.
+            Belum diundang? Hubungi superadmin unit Anda.
+          </p>
+        </div>
+      </div>
+
       <!-- ================= DASHBOARD ================= -->
-      <div class="view active" id="view-dashboard">
+      <div class="view" id="view-dashboard">
         <header class="masthead">
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1>Surat Generator</h1>
@@ -139,6 +208,15 @@
             <span class="step-num">2</span>
             <h2>Konfigurasi Jenis Surat</h2>
           </div>
+          <div class="field full" id="admin-unit-field" hidden>
+            <label for="admin-unit-select">Unit Pemilik</label>
+            <select id="admin-unit-select"></select>
+            <small class="field-hint">
+              Anda login sebagai superadmin, jadi harus memilih unit mana yang
+              memiliki jenis surat ini. Tidak bisa dipindah setelah dibuat.
+            </small>
+          </div>
+
           <div class="field-grid">
             <div class="field">
               <label for="admin-name">Nama Jenis Surat</label>
@@ -197,6 +275,96 @@
             Pindahkan ke Arsip
           </button>
           <div class="status" id="admin-delete-status"></div>
+        </section>
+      </div>
+
+      <!-- ================= SUPERADMIN: KELOLA UNIT & ADMIN ================= -->
+      <div class="view" id="view-superadmin">
+        <button
+          type="button"
+          class="back-btn"
+          id="back-to-dashboard-from-superadmin"
+        >
+          &larr; Kembali ke daftar jenis surat
+        </button>
+        <header class="masthead">
+          <div class="eyebrow">Khusus Superadmin</div>
+          <h1>Kelola Unit &amp; Admin</h1>
+          <p>
+            Daftarkan unit kerja, lalu undang admin untuk mengelola jenis surat
+            unitnya. Orang baru hanya bisa masuk setelah diundang di sini.
+          </p>
+        </header>
+
+        <section class="step" id="superadmin-units">
+          <div class="step-head">
+            <span class="step-num">1</span>
+            <h2>Unit Kerja</h2>
+          </div>
+          <div id="unit-list" class="sa-list"></div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="unit-name-input">Nama Unit</label>
+              <input
+                type="text"
+                id="unit-name-input"
+                placeholder="Contoh: Fakultas Hukum"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="unit-slug-input">Slug</label>
+              <input
+                type="text"
+                id="unit-slug-input"
+                placeholder="contoh: fakultas-hukum"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+          <small class="field-hint">
+            Slug dipakai di alamat URL dan nama folder template, jadi hanya boleh
+            huruf kecil, angka, dan tanda hubung. Tidak bisa diubah setelah
+            dibuat.
+          </small>
+          <button type="button" class="add-btn" id="unit-add-btn">
+            Tambah Unit
+          </button>
+          <div class="status" id="unit-status"></div>
+        </section>
+
+        <section class="step" id="superadmin-users">
+          <div class="step-head">
+            <span class="step-num">2</span>
+            <h2>Admin</h2>
+          </div>
+          <div id="user-list" class="sa-list"></div>
+          <div class="field-grid">
+            <div class="field full">
+              <label for="invite-email-input">Email</label>
+              <input
+                type="text"
+                id="invite-email-input"
+                placeholder="nama@umbjm.ac.id"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="invite-role-select">Peran</label>
+              <select id="invite-role-select">
+                <option value="admin">Admin — satu unit</option>
+                <option value="superadmin">Superadmin — semua unit</option>
+              </select>
+            </div>
+            <div class="field" id="invite-unit-field">
+              <label for="invite-unit-select">Unit</label>
+              <select id="invite-unit-select"></select>
+            </div>
+          </div>
+          <button type="button" class="add-btn" id="invite-btn">
+            Kirim Undangan
+          </button>
+          <div class="status" id="invite-status"></div>
         </section>
       </div>
 

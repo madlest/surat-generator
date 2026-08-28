@@ -759,9 +759,25 @@ button.submit:disabled {
 
 /* Dashboard */
 .dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.dashboard-grid-inner {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
+}
+
+.dashboard-unit-heading {
+  font-family: "Source Serif 4", serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink);
+  margin: 0 0 -6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
 }
 
 .type-card {
@@ -1010,6 +1026,273 @@ button.submit:disabled {
 
 .admin-required-toggle input {
   width: auto;
+}
+
+/* Topbar & login (v2.0.0) */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar[hidden] {
+  display: none;
+}
+
+.topbar-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.topbar-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.topbar-logout {
+  margin: 0;
+}
+
+.login-card {
+  max-width: 420px;
+  margin: 5vh auto 0;
+  padding: 40px 36px 30px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--teal);
+  border-radius: var(--radius);
+  text-align: center;
+  animation: fade-up 0.5s ease both;
+}
+
+.login-monogram {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 18px;
+  border: 1.5px solid var(--teal);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Source Serif 4", serif;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  color: var(--teal);
+}
+
+.login-card .eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--teal);
+  font-weight: 500;
+}
+
+.login-title {
+  font-family: "Source Serif 4", serif;
+  font-weight: 700;
+  font-size: 26px;
+  margin: 6px 0 10px;
+  color: var(--ink);
+}
+
+.login-tagline {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 auto 24px;
+  max-width: 32ch;
+}
+
+.google-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 20px;
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.google-btn:hover {
+  border-color: var(--teal);
+  box-shadow: 0 3px 12px rgba(27, 42, 46, 0.12);
+  transform: translateY(-1px);
+}
+
+.google-btn-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.login-note {
+  margin: 22px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.65;
+  max-width: 36ch;
+}
+
+#login-status {
+  text-align: left;
+  margin-top: 18px;
+}
+
+/* Panel superadmin: daftar unit & admin */
+.sa-list {
+  margin-bottom: 20px;
+}
+
+.sa-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  margin-bottom: 8px;
+}
+
+.sa-row-inactive {
+  opacity: 0.62;
+}
+
+.sa-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sa-row-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.sa-row-sub {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sa-row-action {
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--teal-dark);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.sa-row-action:hover {
+  border-color: var(--teal);
+  background: var(--teal-tint);
+}
+
+.sa-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.sa-badge-off {
+  color: var(--error);
+  border-color: #e8c4b8;
+  background: var(--error-bg);
+}
+
+.sa-row-action-danger {
+  color: var(--error);
+  border-color: #e8c4b8;
+}
+
+.sa-row-action-danger:hover {
+  background: var(--error-bg);
+  border-color: var(--error);
+}
+
+/* Baris unit saat sedang di-rename / dikonfirmasi hapus: kontrol dirapatkan
+   ke kiri, input mengisi sisa ruang. */
+.sa-row-editing {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.sa-inline-input {
+  flex: 1 1 160px;
+}
+
+.sa-empty {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+/* .field memakai display:flex yang menang atas atribut [hidden] bawaan
+   browser, jadi field yang disembunyikan lewat .hidden = true perlu aturan
+   eksplisit ini. */
+#invite-unit-field[hidden],
+#admin-unit-field[hidden] {
+  display: none;
 }
 
 @media (max-width: 600px) {

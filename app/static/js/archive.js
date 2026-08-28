@@ -54,46 +54,60 @@ function renderArchive(items) {
     return;
   }
 
+  // Kelompokkan per unit — heading hanya kalau ada lebih dari satu unit
+  // (superadmin). Konsisten dengan dashboard.
+  const groups = new Map();
   items.forEach((item) => {
-    const row = document.createElement("div");
-    row.className = "archive-row";
-
-    const info = document.createElement("div");
-    info.className = "archive-info";
-    const nama = document.createElement("span");
-    nama.className = "archive-name";
-    nama.textContent = item.name;
-    const meta = document.createElement("span");
-    meta.className = "archive-meta";
-    const tanggal = formatTanggalHapus(item.deleted_at);
-    meta.textContent = tanggal
-      ? `${item.slug} · dihapus ${tanggal}`
-      : item.slug;
-    info.append(nama, meta);
-
-    const aksi = document.createElement("div");
-    aksi.className = "archive-actions";
-
-    const restoreBtn = setText(
-      document.createElement("button"),
-      "Pulihkan",
-    );
-    restoreBtn.type = "button";
-    restoreBtn.className = "archive-restore-btn";
-    restoreBtn.addEventListener("click", () => pulihkan(item, row));
-
-    const purgeBtn = setText(
-      document.createElement("button"),
-      "Hapus permanen",
-    );
-    purgeBtn.type = "button";
-    purgeBtn.className = "archive-purge-btn";
-    purgeBtn.addEventListener("click", () => bukaKonfirmasiHapus(item, row));
-
-    aksi.append(restoreBtn, purgeBtn);
-    row.append(info, aksi);
-    archiveList.appendChild(row);
+    if (!groups.has(item.unit_slug)) {
+      groups.set(item.unit_slug, { name: item.unit_name, items: [] });
+    }
+    groups.get(item.unit_slug).items.push(item);
   });
+  const showHeadings = groups.size > 1;
+
+  groups.forEach((group) => {
+    if (showHeadings) {
+      const heading = setText(document.createElement("h2"), group.name);
+      heading.className = "dashboard-unit-heading";
+      archiveList.appendChild(heading);
+    }
+    group.items.forEach((item) => renderArchiveRow(item));
+  });
+}
+
+function renderArchiveRow(item) {
+  const row = document.createElement("div");
+  row.className = "archive-row";
+
+  const info = document.createElement("div");
+  info.className = "archive-info";
+  const nama = document.createElement("span");
+  nama.className = "archive-name";
+  nama.textContent = item.name;
+  const meta = document.createElement("span");
+  meta.className = "archive-meta";
+  const tanggal = formatTanggalHapus(item.deleted_at);
+  meta.textContent = tanggal
+    ? `${item.slug} · dihapus ${tanggal}`
+    : item.slug;
+  info.append(nama, meta);
+
+  const aksi = document.createElement("div");
+  aksi.className = "archive-actions";
+
+  const restoreBtn = setText(document.createElement("button"), "Pulihkan");
+  restoreBtn.type = "button";
+  restoreBtn.className = "archive-restore-btn";
+  restoreBtn.addEventListener("click", () => pulihkan(item, row));
+
+  const purgeBtn = setText(document.createElement("button"), "Hapus permanen");
+  purgeBtn.type = "button";
+  purgeBtn.className = "archive-purge-btn";
+  purgeBtn.addEventListener("click", () => bukaKonfirmasiHapus(item, row));
+
+  aksi.append(restoreBtn, purgeBtn);
+  row.append(info, aksi);
+  archiveList.appendChild(row);
 }
 
 function tampilkanPesan(row, tipe, teks) {
@@ -106,7 +120,8 @@ function tampilkanPesan(row, tipe, teks) {
 async function pulihkan(item, row) {
   try {
     const res = await fetch(
-      `/admin/letter-types/archived/${encodeURIComponent(item.slug)}/restore`,
+      `/admin/letter-types/archived/${encodeURIComponent(item.slug)}/restore` +
+        `?unit_slug=${encodeURIComponent(item.unit_slug)}`,
       { method: "POST" },
     );
     const data = await res.json();
@@ -163,7 +178,8 @@ function bukaKonfirmasiHapus(item, row) {
     try {
       const res = await fetch(
         `/admin/letter-types/archived/${encodeURIComponent(item.slug)}/purge` +
-          `?confirm_name=${encodeURIComponent(input.value.trim())}`,
+          `?confirm_name=${encodeURIComponent(input.value.trim())}` +
+          `&unit_slug=${encodeURIComponent(item.unit_slug)}`,
         { method: "DELETE" },
       );
       const data = await res.json();

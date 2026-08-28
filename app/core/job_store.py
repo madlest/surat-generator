@@ -15,7 +15,7 @@ class JobStore:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._lock = threading.Lock()
 
-    def create_job(self, job_id: str, total: int) -> None:
+    def create_job(self, job_id: str, total: int, unit_id: int) -> None:
         with self._lock:
             self._jobs[job_id] = {
                 "status": "processing",  # processing | done | error
@@ -24,6 +24,12 @@ class JobStore:
                 "zip_path": None,
                 "error": None,
                 "created_at": time.time(),
+                # Unit pemilik LetterType yang di-generate, BUKAN user yang
+                # memicunya. Dipakai untuk isolasi antar unit di endpoint
+                # status/download: admin di-scope ke unit, bukan ke akun
+                # pribadi, jadi sesama admin unit yang sama boleh saling cek
+                # job satu sama lain.
+                "unit_id": unit_id,
             }
 
     def update_progress(self, job_id: str, current: int) -> None:

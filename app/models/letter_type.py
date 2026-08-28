@@ -1,6 +1,9 @@
 from datetime import datetime
 from enum import Enum
+from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
+
+from app.models.organization import Unit
 
 
 class FieldType(str, Enum):
@@ -15,16 +18,26 @@ class FieldLevel(str, Enum):
 
 
 class LetterType(SQLModel, table=True):
+    # Slug hanya wajib unik di dalam satu unit. Fakultas Hukum boleh punya
+    # "spm" sendiri tanpa bertabrakan dengan milik Farmasi; itulah sebabnya
+    # alamatnya menjadi /generate/{unit_slug}/{slug}.
+    __table_args__ = (UniqueConstraint("unit_id", "slug", name="uq_lettertype_unit_slug"),)
+
     id: int | None = Field(default=None, primary_key=True)
-    slug: str = Field(unique=True, index=True)  # dipakai di URL, misal "permohonan-mengajar"
+    slug: str = Field(index=True)  # dipakai di URL, misal "permohonan-mengajar"
     name: str
     template_path: str
+    # Wajib: tiap jenis surat dimiliki tepat satu unit. Kolom inilah yang
+    # membatasi apa yang boleh dilihat dan disunting seorang admin, sekaligus
+    # menjadi dasar pengelompokan di dashboard.
+    unit_id: int = Field(foreign_key="unit.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     # Terisi saat jenis surat dihapus. Barisnya sengaja tidak dibuang supaya
     # seluruh konfigurasi field-nya utuh dan pemulihan benar-benar berarti;
     # penghapusan sungguhan dilakukan terpisah lewat halaman arsip.
     deleted_at: datetime | None = Field(default=None)
 
+    unit: Unit = Relationship(back_populates="letter_types")
     fields: list["LetterField"] = Relationship(back_populates="letter_type")
 
 

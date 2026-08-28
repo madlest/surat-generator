@@ -8,14 +8,16 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.database import engine
 from app.core.job_store import job_store
+from app.dependencies import get_current_user, scope_unit_id
 from app.models.letter_type import LetterField
+from app.models.organization import User
 from app.services.document_generator import DocumentGenerationError
 from app.services.dynamic_batch_generator import (
     DynamicBatchGenerationError,
@@ -28,7 +30,10 @@ from app.services.dynamic_fields import (
     parse_recipients_from_csv,
     parse_recipients_from_list,
 )
-from app.services.letter_type_repo import get_letter_type_with_fields, split_fields_by_level
+from app.services.letter_type_repo import (
+    get_letter_type_by_unit_slug,
+    split_fields_by_level,
+)
 from app.services.pdf_merger import PdfMergeError
 
 router = APIRouter(prefix="/generate", tags=["Generate Surat Dinamis"])
@@ -158,6 +163,7 @@ def _run_batch_job(
 
 
 def _prepare_generate_request(
+    unit_slug: str,
     slug: str,
     working_dir: Path,
     batch_info: str,
@@ -165,11 +171,23 @@ def _prepare_generate_request(
     lampiran_files: list[UploadFile],
     recipients_json: str | None,
     recipients_csv: UploadFile | None,
+    current_user: User,
 ):
     """
-    Ambil LetterType untuk slug, lalu urai & validasi batch_info, lampiran,
-    dan recipients. Dipakai bersama oleh endpoint generate (job penuh) dan
-    preview (satu penerima), supaya aturan validasinya tidak bercabang.
+    Ambil LetterType untuk pasangan (unit_slug, slug), lalu urai & validasi
+    batch_info, lampiran, dan recipients. Dipakai bersama oleh endpoint
+    generate (job penuh) dan preview (satu penerima), supaya aturan
+    validasinya tidak bercabang.
+
+    Dicari lewat (unit_slug, slug), bukan slug saja — pasangan ini dijamin
+    unik secara global oleh constraint database, jadi tidak ada ambiguitas
+    "ambil yang pertama ketemu" seperti pada Stage 3a.
+
+    Kepemilikan dicek SETELAH ditemukan (bukan lewat filter query) karena
+    unit_slug sudah eksplisit di URL: kalau admin unit lain mengetik URL unit
+    yang bukan miliknya, responsnya tetap 404 yang sama seperti benar-benar
+    tidak ada — bukan 403 — supaya tidak bocor informasi jenis surat apa saja
+    yang dipakai unit lain.
 
     working_dir harus sudah dibuat oleh pemanggil (butuh ada lebih dulu untuk
     tempat lampiran disimpan). Kalau terjadi error, folder ini dihapus di sini
@@ -179,11 +197,15 @@ def _prepare_generate_request(
     custom_batch_values, recipients).
     """
     with Session(engine) as session:
-        result = get_letter_type_with_fields(session, slug)
+        result = get_letter_type_by_unit_slug(session, unit_slug, slug)
     if not result:
         raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
     letter_type, fields = result
+
+    unit_filter = scope_unit_id(current_user)
+    if unit_filter is not None and letter_type.unit_id != unit_filter:
+        raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
     batch_fields, recipient_fields = split_fields_by_level(fields)
 
     try:
@@ -251,8 +273,9 @@ def _prepare_generate_request(
     return letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients
 
 
-@router.post("/{slug}")
+@router.post("/{unit_slug}/{slug}")
 def start_generate_job(
+    unit_slug: str,
     slug: str,
     background_tasks: BackgroundTasks,
     batch_info: str = Form(...),
@@ -260,6 +283,7 @@ def start_generate_job(
     lampiran_files: list[UploadFile] | None = File(default=None),
     recipients_json: str | None = Form(default=None),
     recipients_csv: UploadFile | None = File(default=None),
+    current_user: User = Depends(get_current_user),
 ):
     job_id = uuid.uuid4().hex
     working_dir = Path(settings.temp_dir) / f"job_{job_id}"
@@ -267,6 +291,7 @@ def start_generate_job(
 
     letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients = (
         _prepare_generate_request(
+            unit_slug,
             slug,
             working_dir,
             batch_info,
@@ -274,6 +299,7 @@ def start_generate_job(
             lampiran_files or [],
             recipients_json,
             recipients_csv,
+            current_user,
         )
     )
 
@@ -282,7 +308,11 @@ def start_generate_job(
     for stale_zip in job_store.sweep_stale(JOB_MAX_AGE_SECONDS):
         shutil.rmtree(Path(stale_zip).parent, ignore_errors=True)
 
-    job_store.create_job(job_id=job_id, total=len(recipients))
+    # Kepemilikan job disimpan sebagai unit LetterType-nya, bukan user yang
+    # memicu — supaya sesama admin di unit yang sama tetap bisa saling
+    # memantau job satu sama lain (konsisten dengan prinsip admin di-scope ke
+    # unit, bukan ke akun pribadi).
+    job_store.create_job(job_id=job_id, total=len(recipients), unit_id=letter_type.unit_id)
     background_tasks.add_task(
         _run_batch_job,
         job_id,
@@ -298,8 +328,9 @@ def start_generate_job(
     return {"job_id": job_id, "total": len(recipients)}
 
 
-@router.post("/{slug}/preview")
+@router.post("/{unit_slug}/{slug}/preview")
 def preview_generate(
+    unit_slug: str,
     slug: str,
     background_tasks: BackgroundTasks,
     batch_info: str = Form(...),
@@ -307,6 +338,7 @@ def preview_generate(
     lampiran_files: list[UploadFile] | None = File(default=None),
     recipients_json: str | None = Form(default=None),
     recipients_csv: UploadFile | None = File(default=None),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate satu dokumen (cover letter + lampiran tergabung) untuk penerima
@@ -322,6 +354,7 @@ def preview_generate(
 
     letter_type, batch_fields, recipient_fields, base_info, custom_batch_values, recipients = (
         _prepare_generate_request(
+            unit_slug,
             slug,
             working_dir,
             batch_info,
@@ -329,6 +362,7 @@ def preview_generate(
             lampiran_files or [],
             recipients_json,
             recipients_csv,
+            current_user,
         )
     )
 
@@ -364,19 +398,38 @@ def preview_generate(
     )
 
 
+def _check_job_unit_access(job: dict, current_user: User) -> None:
+    """
+    Menolak akses ke job milik unit lain. Job disimpan dengan job_id acak
+    (UUID), yang sudah cukup aman dari tebakan, tapi tetap ditegakkan di sini
+    sebagai lapisan kedua — supaya kalau job_id tersebar (mis. ter-log atau
+    ter-screenshot tanpa sengaja), admin unit lain tetap tidak bisa memantau
+    atau mengunduh hasilnya. Superadmin (scope_unit_id -> None) selalu lolos.
+    """
+    unit_filter = scope_unit_id(current_user)
+    if unit_filter is not None and job.get("unit_id") != unit_filter:
+        raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+
+
 @router.get("/jobs/{job_id}/status")
-def get_job_status(job_id: str):
+def get_job_status(job_id: str, current_user: User = Depends(get_current_user)):
     job = job_store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    _check_job_unit_access(job, current_user)
     return job
 
 
 @router.get("/jobs/{job_id}/download")
-def download_job_result(job_id: str, background_tasks: BackgroundTasks):
+def download_job_result(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
     job = job_store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    _check_job_unit_access(job, current_user)
     if job["status"] != "done":
         raise HTTPException(status_code=409, detail="Dokumen belum selesai diproses.")
 

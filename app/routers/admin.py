@@ -5,12 +5,14 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session, col, select
 
 from app.core.database import engine
+from app.dependencies import get_current_user, scope_unit_id
 from app.models.letter_type import FieldLevel, FieldType, LetterType, LetterField
+from app.models.organization import Unit, User, UserRole
 from app.services.letter_type_repo import get_letter_type_with_fields
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
 
@@ -41,6 +43,94 @@ def _validate_identity(raw_name: str, raw_slug: str) -> tuple[str, str]:
             ),
         )
     return cleaned_name, cleaned_slug
+
+
+def _resolve_target_unit(session: Session, current_user: User, requested_unit_id: int | None) -> Unit:
+    """
+    Menentukan unit pemilik untuk operasi create/pindah-slug.
+
+    Admin biasa selalu memakai unitnya sendiri — requested_unit_id yang
+    dikirim klien DIABAIKAN untuk role ini, supaya seorang admin tidak bisa
+    membuat jenis surat atas nama unit lain lewat permintaan manual (curl,
+    Postman) sekalipun frontend tidak pernah mengirim field itu untuknya.
+
+    Superadmin wajib mengirim unit_id eksplisit, karena dia sendiri tidak
+    terikat satu unit.
+    """
+    if current_user.role == UserRole.superadmin:
+        if requested_unit_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="unit_id wajib diisi (Anda login sebagai superadmin, tidak terikat satu unit).",
+            )
+        unit = session.get(Unit, requested_unit_id)
+        if unit is None:
+            raise HTTPException(status_code=400, detail=f"Unit dengan id {requested_unit_id} tidak ditemukan.")
+        return unit
+
+    if current_user.unit_id is None:
+        raise HTTPException(status_code=403, detail="Akun Anda tidak terikat unit manapun. Hubungi superadmin.")
+    unit = session.get(Unit, current_user.unit_id)
+    if unit is None:
+        raise HTTPException(status_code=500, detail="Unit milik akun Anda tidak ditemukan di database.")
+    return unit
+
+
+def _unit_upload_dir(unit_slug: str) -> Path:
+    """
+    Folder template untuk satu unit: app/templates/uploaded/{unit_slug}/.
+
+    Sejak Stage 3b, tiap unit punya foldernya sendiri, jadi dua unit bebas
+    memakai slug jenis surat yang sama tanpa berebut nama file — beda dari
+    Stage 3a yang masih menolak itu karena filenya sempat disimpan flat.
+    """
+    path = UPLOAD_DIR / unit_slug
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _resolve_unit_filter(session: Session, current_user: User, unit_slug: str | None) -> int | None:
+    """
+    unit_id yang dipakai untuk membatasi operasi jenis-surat-by-slug.
+
+    Admin biasa: SELALU unitnya sendiri; `unit_slug` dari klien diabaikan
+    (tidak bisa mengintip atau menyentuh unit lain lewat query param).
+
+    Superadmin: kalau `unit_slug` diisi, dibatasi ke unit itu — inilah yang
+    membuat pasangan (unit_slug, slug) tidak ambigu saat dua unit memakai slug
+    yang sama. Tanpa `unit_slug`, superadmin mencari lintas semua unit ("ambil
+    yang pertama ketemu"); dipertahankan demi kompatibilitas, tapi frontend
+    sejak Stage 4 (B3) selalu mengirim unit_slug.
+    """
+    scoped = scope_unit_id(current_user)
+    if scoped is not None:
+        return scoped
+    if unit_slug:
+        unit = session.exec(select(Unit).where(Unit.slug == unit_slug)).first()
+        if unit is None:
+            # 404 yang sama seperti jenis suratnya sendiri tidak ada — tidak
+            # membocorkan unit slug apa saja yang valid.
+            raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
+        return unit.id
+    return None
+
+
+def _letter_type_summary(letter_type: LetterType) -> dict:
+    """
+    Bentuk ringkas untuk daftar dashboard & arsip. Menyertakan unit_slug dan
+    unit_name supaya frontend bisa mengelompokkan per unit dan menyusun URL
+    /generate/{unit_slug}/{slug} tanpa panggilan tambahan.
+    """
+    return {
+        "id": letter_type.id,
+        "slug": letter_type.slug,
+        "name": letter_type.name,
+        "unit_id": letter_type.unit_id,
+        "unit_slug": letter_type.unit.slug,
+        "unit_name": letter_type.unit.name,
+        "created_at": letter_type.created_at,
+        "deleted_at": letter_type.deleted_at,
+    }
 
 
 def _normalize_fields_config(fields_config: str) -> list[dict]:
@@ -129,11 +219,17 @@ def _replace_fields(session: Session, letter_type_id: int, normalized_fields: li
 
 
 @router.post("/inspect")
-def inspect_template(template_file: UploadFile = File(...)):
+def inspect_template(
+    template_file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
     """
     Langkah 1: upload docx untuk dideteksi variabel custom-nya,
     TANPA menyimpan apa pun secara permanen. Admin melihat hasil
     deteksi ini dulu sebelum submit konfigurasi lengkap di langkah 2.
+
+    Tidak menyentuh data milik unit manapun, jadi cukup mensyaratkan login
+    (siapa pun yang sudah diundang), tanpa perlu pengecekan unit di sini.
     """
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     # Nama file dibuat acak, bukan diambil dari template_file.filename, karena
@@ -160,33 +256,44 @@ def create_letter_type(
     slug: str = Form(...),
     fields_config: str = Form(...),  # JSON string: list of {field_key, label, field_type, level, required}
     template_file: UploadFile = File(...),
+    unit_id: int | None = Form(default=None),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Langkah 2: submit definisi lengkap jenis surat baru, termasuk
     template docx final (disimpan permanen kali ini) dan konfigurasi
     tiap field yang sudah diisi admin berdasarkan hasil /inspect.
+
+    unit_id: wajib diisi kalau yang login superadmin. Diabaikan untuk admin
+    biasa — lihat _resolve_target_unit().
     """
     name, slug = _validate_identity(name, slug)
     normalized_fields = _normalize_fields_config(fields_config)
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    final_path = UPLOAD_DIR / f"{slug}.docx"
-
     with Session(engine) as session:
+        target_unit = _resolve_target_unit(session, current_user, unit_id)
+        assert target_unit.id is not None  # baris dari DB selalu punya id
+
+        unit_dir = _unit_upload_dir(target_unit.slug)
+        final_path = unit_dir / f"{slug}.docx"
+
         # Jenis surat yang diarsipkan tetap memegang slug-nya. Tanpa pesan yang
         # membedakan, admin akan bingung: slug ditolak padahal tidak ada kartu
-        # dengan nama itu di dashboard.
-        existing = session.exec(select(LetterType).where(LetterType.slug == slug)).first()
+        # dengan nama itu di dashboard. Dicek per-unit karena slug hanya wajib
+        # unik di dalam satu unit, bukan lagi global.
+        existing = session.exec(
+            select(LetterType).where(LetterType.slug == slug, LetterType.unit_id == target_unit.id)
+        ).first()
         if existing and existing.deleted_at is not None:
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Slug '{slug}' dipakai jenis surat yang ada di arsip. "
+                    f"Slug '{slug}' dipakai jenis surat yang ada di arsip unit ini. "
                     "Pulihkan atau hapus permanen dulu lewat halaman arsip."
                 ),
             )
         if existing:
-            raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah terdaftar di database.")
+            raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah terdaftar di unit ini.")
         if final_path.exists():
             raise HTTPException(status_code=400, detail=f"Slug '{slug}' sudah digunakan.")
 
@@ -197,7 +304,12 @@ def create_letter_type(
             # as_posix() (bukan str()) supaya path selalu tersimpan dengan forward
             # slash. str() mengikuti OS yang sedang jalan, sehingga data yang dibuat
             # di Windows tidak terbaca saat aplikasi dijalankan di Linux.
-            letter_type = LetterType(name=name, slug=slug, template_path=final_path.as_posix())
+            letter_type = LetterType(
+                name=name,
+                slug=slug,
+                template_path=final_path.as_posix(),
+                unit_id=target_unit.id,
+            )
             session.add(letter_type)
             session.commit()
             session.refresh(letter_type)
@@ -228,6 +340,8 @@ def update_letter_type(
     new_slug: str = Form(...),
     fields_config: str = Form(...),
     template_file: UploadFile | None = File(default=None),
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Perbarui jenis surat yang sudah ada: nama, slug, konfigurasi field, dan
@@ -242,11 +356,15 @@ def update_letter_type(
     Catatan soal ganti slug: slug menentukan nama file template sekaligus URL
     /generate/{slug}, jadi mengubahnya memindahkan file di disk dan memutus
     tautan lama ke jenis surat ini.
+
+    Endpoint ini tidak memindahkan jenis surat ke unit lain — unit_id tetap
+    milik unit aslinya. Pemindahan lintas unit belum ada kebutuhannya dan
+    sengaja tidak diimplementasikan supaya tidak ada celah admin memindahkan
+    "aset" ke unitnya sendiri.
     """
     name, new_slug = _validate_identity(name, new_slug)
     normalized_fields = _normalize_fields_config(fields_config)
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     backup_path: Path | None = None
     # Simpan berkasnya sendiri, bukan sekadar penanda boolean: penyempitan tipe
     # tidak menular lewat variabel perantara, sehingga _save_template tetap
@@ -256,27 +374,41 @@ def update_letter_type(
     )
 
     with Session(engine) as session:
-        letter_type = session.exec(
-            select(LetterType)
-            .where(LetterType.slug == slug)
-            .where(col(LetterType.deleted_at).is_(None))
-        ).first()
+        # Dibatasi ke unit user yang login (None untuk superadmin tanpa
+        # unit_slug = lintas semua unit). Kalau slug ada tapi milik unit lain,
+        # ini sengaja mengembalikan 404 yang sama seperti benar-benar tidak
+        # ada — admin yang tidak berhak tidak perlu tahu slug itu dipakai unit
+        # lain.
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        letter_type = session.exec(query).first()
         if not letter_type:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
         if letter_type.id is None:
             raise HTTPException(status_code=500, detail="Jenis surat tidak punya id.")
 
+        own_unit_id = letter_type.unit_id
+        own_unit_slug = letter_type.unit.slug
+        unit_dir = _unit_upload_dir(own_unit_slug)
         old_path = Path(letter_type.template_path)
-        new_path = UPLOAD_DIR / f"{new_slug}.docx"
+        new_path = unit_dir / f"{new_slug}.docx"
         slug_berubah = new_slug != slug
 
         if slug_berubah:
-            bentrok = session.exec(select(LetterType).where(LetterType.slug == new_slug)).first()
+            # Bentrok cukup dicek dalam SATU unit yang sama — slug wajib unik
+            # per unit, dan sejak Stage 3b filenya juga tersimpan di folder
+            # terpisah per unit, jadi tidak ada lagi risiko tabrakan lintas
+            # unit di level nama file.
+            bentrok = session.exec(
+                select(LetterType).where(LetterType.slug == new_slug, LetterType.unit_id == own_unit_id)
+            ).first()
             if bentrok:
                 di_arsip = " yang ada di arsip" if bentrok.deleted_at is not None else " lain"
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Slug '{new_slug}' sudah dipakai jenis surat{di_arsip}.",
+                    detail=f"Slug '{new_slug}' sudah dipakai jenis surat{di_arsip} di unit ini.",
                 )
             if new_path.exists():
                 raise HTTPException(
@@ -330,7 +462,12 @@ def update_letter_type(
 
 
 @router.delete("/{slug}")
-def archive_letter_type(slug: str, confirm_name: str):
+def archive_letter_type(
+    slug: str,
+    confirm_name: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     """
     Arsipkan jenis surat: barisnya ditandai terhapus, bukan dibuang.
 
@@ -344,11 +481,11 @@ def archive_letter_type(slug: str, confirm_name: str):
     dipanggil langsung.
     """
     with Session(engine) as session:
-        letter_type = session.exec(
-            select(LetterType)
-            .where(LetterType.slug == slug)
-            .where(col(LetterType.deleted_at).is_(None))
-        ).first()
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        letter_type = session.exec(query).first()
         if not letter_type:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
@@ -366,18 +503,22 @@ def archive_letter_type(slug: str, confirm_name: str):
 
 
 @router.post("/archived/{slug}/restore")
-def restore_letter_type(slug: str):
+def restore_letter_type(
+    slug: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     """
     Kembalikan jenis surat dari arsip, lengkap dengan seluruh konfigurasi
     field-nya. Templatnya tidak pernah dipindah, jadi tidak ada yang perlu
     disusun ulang.
     """
     with Session(engine) as session:
-        letter_type = session.exec(
-            select(LetterType)
-            .where(LetterType.slug == slug)
-            .where(col(LetterType.deleted_at).is_not(None))
-        ).first()
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_not(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        letter_type = session.exec(query).first()
         if not letter_type:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ada di arsip.")
 
@@ -391,17 +532,22 @@ def restore_letter_type(slug: str):
 
 
 @router.delete("/archived/{slug}/purge")
-def purge_letter_type(slug: str, confirm_name: str):
+def purge_letter_type(
+    slug: str,
+    confirm_name: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     """
     Hapus jenis surat dari arsip untuk selamanya: barisnya, seluruh
     LetterField-nya, dan berkas templatnya. Tidak ada jalan kembali setelah ini.
     """
     with Session(engine) as session:
-        letter_type = session.exec(
-            select(LetterType)
-            .where(LetterType.slug == slug)
-            .where(col(LetterType.deleted_at).is_not(None))
-        ).first()
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_not(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        letter_type = session.exec(query).first()
         if not letter_type:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ada di arsip.")
 
@@ -430,34 +576,49 @@ def purge_letter_type(slug: str, confirm_name: str):
 
 
 @router.get("")
-def list_letter_types():
-    """Daftar jenis surat yang aktif. Yang diarsipkan tidak ikut."""
+def list_letter_types(current_user: User = Depends(get_current_user)):
+    """
+    Daftar jenis surat yang aktif. Yang diarsipkan tidak ikut.
+
+    Admin biasa hanya melihat jenis surat milik unitnya sendiri. Superadmin
+    melihat semua unit — sesuai keputusan yang sudah disepakati: admin tidak
+    diberi akses lintas unit sekalipun read-only, supaya aturannya tetap satu
+    dan gampang diaudit.
+    """
+    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
-        return session.exec(
-            select(LetterType).where(col(LetterType.deleted_at).is_(None))
-        ).all()
+        query = select(LetterType).where(col(LetterType.deleted_at).is_(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        return [_letter_type_summary(lt) for lt in session.exec(query).all()]
 
 
 @router.get("/archived")
-def list_archived_letter_types():
+def list_archived_letter_types(current_user: User = Depends(get_current_user)):
     """
     Daftar jenis surat yang sudah diarsipkan, terbaru lebih dulu.
 
     Rute ini harus didaftarkan sebelum GET "/{slug}", kalau tidak "archived"
     akan tertangkap sebagai slug.
     """
+    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
-        return session.exec(
-            select(LetterType)
-            .where(col(LetterType.deleted_at).is_not(None))
-            .order_by(col(LetterType.deleted_at).desc())
-        ).all()
+        query = select(LetterType).where(col(LetterType.deleted_at).is_not(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        rows = session.exec(query.order_by(col(LetterType.deleted_at).desc())).all()
+        return [_letter_type_summary(lt) for lt in rows]
 
 
 @router.get("/{slug}")
-def get_letter_type(slug: str):
+def get_letter_type(
+    slug: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     with Session(engine) as session:
-        result = get_letter_type_with_fields(session, slug)
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        result = get_letter_type_with_fields(session, slug, unit_id=unit_filter)
         if not result:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
@@ -466,22 +627,34 @@ def get_letter_type(slug: str):
             "id": letter_type.id,
             "slug": letter_type.slug,
             "name": letter_type.name,
+            "unit_slug": letter_type.unit.slug,
+            "unit_name": letter_type.unit.name,
             "fields": fields,
         }
 
 
 @router.get("/{slug}/template")
-def download_current_template(slug: str):
+def download_current_template(
+    slug: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     """
     Unduh file template .docx yang sedang aktif untuk satu jenis surat —
     supaya admin punya salinan yang persis dipakai sistem saat ini sebagai
     acuan/basis kalau mau merevisi (mis. nambah placeholder baru tanpa
     kehilangan format asli yang sudah ada).
+
+    Di-scope ke unit yang sama seperti endpoint lain: kalau admin unit lain
+    perlu template unit lain sebagai referensi, itu diminta lewat superadmin
+    (atau nanti role auditor), bukan diakses langsung.
     """
     with Session(engine) as session:
-        letter_type = session.exec(
-            select(LetterType).where(LetterType.slug == slug, col(LetterType.deleted_at).is_(None))
-        ).first()
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        query = select(LetterType).where(LetterType.slug == slug, col(LetterType.deleted_at).is_(None))
+        if unit_filter is not None:
+            query = query.where(LetterType.unit_id == unit_filter)
+        letter_type = session.exec(query).first()
     if not letter_type:
         raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
