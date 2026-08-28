@@ -17,13 +17,17 @@ let currentLetterType = null;
 // oleh setupSubmitHandler.
 let recipientsMode = "list";
 
-export async function openForm(slug) {
+export async function openForm(unitSlug, slug) {
   showView("view-form");
   formTypeTag.textContent = "";
   formArea.innerHTML = "<p>Memuat form&hellip;</p>";
   try {
+    // unit_slug menyertai slug supaya superadmin tetap dapat jenis surat yang
+    // tepat kalau ada dua unit memakai slug sama. Untuk admin biasa param ini
+    // diabaikan server (sudah otomatis di-scope ke unitnya).
     const res = await fetch(
-      `/admin/letter-types/${encodeURIComponent(slug)}`,
+      `/admin/letter-types/${encodeURIComponent(slug)}` +
+        `?unit_slug=${encodeURIComponent(unitSlug)}`,
     );
     if (!res.ok) throw new Error("Gagal memuat jenis surat.");
     currentLetterType = await res.json();

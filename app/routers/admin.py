@@ -89,6 +89,50 @@ def _unit_upload_dir(unit_slug: str) -> Path:
     return path
 
 
+def _resolve_unit_filter(session: Session, current_user: User, unit_slug: str | None) -> int | None:
+    """
+    unit_id yang dipakai untuk membatasi operasi jenis-surat-by-slug.
+
+    Admin biasa: SELALU unitnya sendiri; `unit_slug` dari klien diabaikan
+    (tidak bisa mengintip atau menyentuh unit lain lewat query param).
+
+    Superadmin: kalau `unit_slug` diisi, dibatasi ke unit itu — inilah yang
+    membuat pasangan (unit_slug, slug) tidak ambigu saat dua unit memakai slug
+    yang sama. Tanpa `unit_slug`, superadmin mencari lintas semua unit ("ambil
+    yang pertama ketemu"); dipertahankan demi kompatibilitas, tapi frontend
+    sejak Stage 4 (B3) selalu mengirim unit_slug.
+    """
+    scoped = scope_unit_id(current_user)
+    if scoped is not None:
+        return scoped
+    if unit_slug:
+        unit = session.exec(select(Unit).where(Unit.slug == unit_slug)).first()
+        if unit is None:
+            # 404 yang sama seperti jenis suratnya sendiri tidak ada — tidak
+            # membocorkan unit slug apa saja yang valid.
+            raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
+        return unit.id
+    return None
+
+
+def _letter_type_summary(letter_type: LetterType) -> dict:
+    """
+    Bentuk ringkas untuk daftar dashboard & arsip. Menyertakan unit_slug dan
+    unit_name supaya frontend bisa mengelompokkan per unit dan menyusun URL
+    /generate/{unit_slug}/{slug} tanpa panggilan tambahan.
+    """
+    return {
+        "id": letter_type.id,
+        "slug": letter_type.slug,
+        "name": letter_type.name,
+        "unit_id": letter_type.unit_id,
+        "unit_slug": letter_type.unit.slug,
+        "unit_name": letter_type.unit.name,
+        "created_at": letter_type.created_at,
+        "deleted_at": letter_type.deleted_at,
+    }
+
+
 def _normalize_fields_config(fields_config: str) -> list[dict]:
     """
     Urai dan validasi definisi field dari klien menjadi bentuk baku yang siap
@@ -296,6 +340,7 @@ def update_letter_type(
     new_slug: str = Form(...),
     fields_config: str = Form(...),
     template_file: UploadFile | None = File(default=None),
+    unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -328,13 +373,13 @@ def update_letter_type(
         template_file if template_file is not None and template_file.filename else None
     )
 
-    unit_filter = scope_unit_id(current_user)
-
     with Session(engine) as session:
-        # Dibatasi ke unit user yang login (None untuk superadmin = lintas
-        # semua unit). Kalau slug ada tapi milik unit lain, ini sengaja
-        # mengembalikan 404 yang sama seperti benar-benar tidak ada — admin
-        # yang tidak berhak tidak perlu tahu slug itu dipakai unit lain.
+        # Dibatasi ke unit user yang login (None untuk superadmin tanpa
+        # unit_slug = lintas semua unit). Kalau slug ada tapi milik unit lain,
+        # ini sengaja mengembalikan 404 yang sama seperti benar-benar tidak
+        # ada — admin yang tidak berhak tidak perlu tahu slug itu dipakai unit
+        # lain.
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
         query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
@@ -420,6 +465,7 @@ def update_letter_type(
 def archive_letter_type(
     slug: str,
     confirm_name: str,
+    unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -434,8 +480,8 @@ def archive_letter_type(
     ditegakkan di server juga, bukan hanya di UI, karena endpoint ini bisa
     dipanggil langsung.
     """
-    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
         query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
@@ -459,6 +505,7 @@ def archive_letter_type(
 @router.post("/archived/{slug}/restore")
 def restore_letter_type(
     slug: str,
+    unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -466,8 +513,8 @@ def restore_letter_type(
     field-nya. Templatnya tidak pernah dipindah, jadi tidak ada yang perlu
     disusun ulang.
     """
-    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
         query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_not(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
@@ -488,14 +535,15 @@ def restore_letter_type(
 def purge_letter_type(
     slug: str,
     confirm_name: str,
+    unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
     """
     Hapus jenis surat dari arsip untuk selamanya: barisnya, seluruh
     LetterField-nya, dan berkas templatnya. Tidak ada jalan kembali setelah ini.
     """
-    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
         query = select(LetterType).where(LetterType.slug == slug).where(col(LetterType.deleted_at).is_not(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
@@ -542,7 +590,7 @@ def list_letter_types(current_user: User = Depends(get_current_user)):
         query = select(LetterType).where(col(LetterType.deleted_at).is_(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
-        return session.exec(query).all()
+        return [_letter_type_summary(lt) for lt in session.exec(query).all()]
 
 
 @router.get("/archived")
@@ -558,13 +606,19 @@ def list_archived_letter_types(current_user: User = Depends(get_current_user)):
         query = select(LetterType).where(col(LetterType.deleted_at).is_not(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)
-        return session.exec(query.order_by(col(LetterType.deleted_at).desc())).all()
+        rows = session.exec(query.order_by(col(LetterType.deleted_at).desc())).all()
+        return [_letter_type_summary(lt) for lt in rows]
 
 
 @router.get("/{slug}")
-def get_letter_type(slug: str, current_user: User = Depends(get_current_user)):
+def get_letter_type(
+    slug: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     with Session(engine) as session:
-        result = get_letter_type_with_fields(session, slug, unit_id=scope_unit_id(current_user))
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
+        result = get_letter_type_with_fields(session, slug, unit_id=unit_filter)
         if not result:
             raise HTTPException(status_code=404, detail="Jenis surat tidak ditemukan.")
 
@@ -574,12 +628,17 @@ def get_letter_type(slug: str, current_user: User = Depends(get_current_user)):
             "slug": letter_type.slug,
             "name": letter_type.name,
             "unit_slug": letter_type.unit.slug,
+            "unit_name": letter_type.unit.name,
             "fields": fields,
         }
 
 
 @router.get("/{slug}/template")
-def download_current_template(slug: str, current_user: User = Depends(get_current_user)):
+def download_current_template(
+    slug: str,
+    unit_slug: str | None = None,
+    current_user: User = Depends(get_current_user),
+):
     """
     Unduh file template .docx yang sedang aktif untuk satu jenis surat —
     supaya admin punya salinan yang persis dipakai sistem saat ini sebagai
@@ -590,8 +649,8 @@ def download_current_template(slug: str, current_user: User = Depends(get_curren
     perlu template unit lain sebagai referensi, itu diminta lewat superadmin
     (atau nanti role auditor), bukan diakses langsung.
     """
-    unit_filter = scope_unit_id(current_user)
     with Session(engine) as session:
+        unit_filter = _resolve_unit_filter(session, current_user, unit_slug)
         query = select(LetterType).where(LetterType.slug == slug, col(LetterType.deleted_at).is_(None))
         if unit_filter is not None:
             query = query.where(LetterType.unit_id == unit_filter)

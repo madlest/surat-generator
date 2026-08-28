@@ -22,6 +22,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 STATE_COOKIE_NAME = "oauth_state"
 
 
+def _auth_error_redirect(code: str) -> RedirectResponse:
+    """
+    Alih-alih melempar HTTPException (yang muncul sebagai JSON mentah di tab
+    browser karena /auth/callback adalah navigasi penuh, bukan fetch), kembali
+    ke SPA dengan ?auth_error=<code>. auth.js yang menerjemahkan kode itu jadi
+    pesan yang ramah di layar masuk lalu membersihkan query-nya.
+
+    State cookie ikut dihapus supaya percobaan berikutnya mulai bersih.
+    """
+    response = RedirectResponse(f"/?auth_error={code}", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie(STATE_COOKIE_NAME)
+    return response
+
+
 def _redirect_uri(request: Request) -> str:
     # Dibangun dari request, bukan dari config: supaya jalan apa adanya baik
     # di localhost (dev) maupun domain produksi tanpa perlu env terpisah,
@@ -57,23 +71,24 @@ async def callback(
 ):
     if error:
         # Pengguna membatalkan di layar consent Google, atau kasus serupa.
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Login dibatalkan: {error}")
+        return _auth_error_redirect("cancelled")
 
     cookie_state = request.cookies.get(STATE_COOKIE_NAME)
     if not state or not cookie_state or state != cookie_state or not verify_oauth_state(state):
         # Cocokkan DUA arah: token harus valid tanda tangannya (verify_oauth_state)
         # DAN harus sama persis dengan yang kita taruh di cookie saat /login.
         # Ini yang mencegah CSRF pada alur OAuth.
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "State OAuth tidak valid, mungkin kedaluwarsa")
+        return _auth_error_redirect("expired")
 
     if not code:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Parameter code tidak ada")
+        return _auth_error_redirect("expired")
 
     try:
         raw_id_token = await exchange_code_for_id_token(code, _redirect_uri(request))
         claims = verify_id_token(raw_id_token)
-    except OAuthError as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+    except OAuthError:
+        # Termasuk email di luar domain @umbjm.ac.id dan email belum terverifikasi.
+        return _auth_error_redirect("oauth")
 
     email = claims["email"].lower()
     name = claims.get("name")
@@ -91,11 +106,16 @@ async def callback(
             user = User(email=email, role=UserRole.superadmin, unit_id=None)
             session.add(user)
         else:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "Akun ini belum diundang untuk menggunakan Surat Generator. "
-                "Hubungi superadmin unit Anda.",
-            )
+            # Login = daftar undangan, bukan pendaftaran terbuka. Punya email
+            # @umbjm.ac.id saja tidak cukup (mahasiswa pun punya).
+            return _auth_error_redirect("not_invited")
+
+    if not user.is_active:
+        # Aksesnya sudah dicabut superadmin. Ditolak DI SINI (sebelum cookie
+        # sesi dipasang) supaya tidak ada sesi setengah jadi yang tiap request
+        # kena 401 tanpa penjelasan — get_current_user juga tetap menolaknya
+        # sebagai lapis kedua.
+        return _auth_error_redirect("deactivated")
 
     user.name = name
     user.picture_url = picture_url
@@ -135,4 +155,8 @@ def me(user: User = Depends(get_current_user)):
         "picture_url": user.picture_url,
         "role": user.role.value,
         "unit_id": user.unit_id,
+        # Nama unit ikut dikirim supaya topbar bisa menampilkan "Admin ·
+        # Fakultas Farmasi" tanpa frontend perlu memanggil /admin/units
+        # terpisah. Null untuk superadmin yang tidak terikat satu unit.
+        "unit_name": user.unit.name if user.unit else None,
     }

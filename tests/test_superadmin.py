@@ -7,11 +7,14 @@ terakhir".
 """
 import pytest
 
+from app.models.letter_type import LetterType
 from app.models.organization import Unit, UserRole
 
 SUPERADMIN_PATHS = [
     ("get", "/admin/units"),
     ("post", "/admin/units"),
+    ("patch", "/admin/units/1"),
+    ("delete", "/admin/units/1"),
     ("get", "/admin/users"),
     ("post", "/admin/users/invite"),
     ("patch", "/admin/users/1/deactivate"),
@@ -41,7 +44,8 @@ def admin(make_user, unit):
 # --- Otorisasi -------------------------------------------------------------
 
 def _call(client, method, path):
-    kwargs = {} if method == "get" else {"json": {}}
+    # TestClient.get/delete tidak menerima kwarg `json`; hanya post/patch/put.
+    kwargs = {"json": {}} if method in {"post", "patch", "put"} else {}
     return getattr(client, method)(path, **kwargs)
 
 
@@ -90,6 +94,63 @@ def test_slug_unit_dinormalisasi_dan_duplikat_ditolak(client, login, superadmin)
 def test_nama_unit_kosong_ditolak(client, login, superadmin):
     login(superadmin)
     assert client.post("/admin/units", json={"slug": "hukum", "name": "   "}).status_code == 400
+
+
+# --- Ubah / hapus unit ---------------------------------------------------
+
+def test_ubah_nama_unit(client, login, superadmin, unit):
+    login(superadmin)
+    resp = client.patch(f"/admin/units/{unit.id}", json={"name": "  Fakultas Farmasi (Baru)  "})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["name"] == "Fakultas Farmasi (Baru)"
+    assert body["slug"] == "farmasi"  # slug tidak ikut berubah
+
+
+def test_ubah_nama_unit_kosong_ditolak(client, login, superadmin, unit):
+    login(superadmin)
+    assert client.patch(f"/admin/units/{unit.id}", json={"name": "  "}).status_code == 400
+
+
+def test_ubah_nama_unit_tidak_ada_404(client, login, superadmin):
+    login(superadmin)
+    assert client.patch("/admin/units/9999", json={"name": "X"}).status_code == 404
+
+
+def test_hapus_unit_kosong(client, login, superadmin, session):
+    kosong = Unit(slug="salah-ketik", name="Unit Salah Ketik")
+    session.add(kosong)
+    session.commit()
+    session.refresh(kosong)
+
+    login(superadmin)
+    assert client.delete(f"/admin/units/{kosong.id}").status_code == 200
+    assert client.get("/admin/units").json() == []
+
+
+def test_hapus_unit_yang_punya_jenis_surat_ditolak(client, login, superadmin, unit, session):
+    session.add(
+        LetterType(slug="spm", name="SPM", template_path="p/farmasi/spm.docx", unit_id=unit.id)
+    )
+    session.commit()
+
+    login(superadmin)
+    resp = client.delete(f"/admin/units/{unit.id}")
+    assert resp.status_code == 400
+    assert "jenis surat" in resp.json()["detail"]
+
+
+def test_hapus_unit_yang_punya_admin_ditolak(client, login, superadmin, unit, make_user):
+    make_user("staf@umbjm.ac.id", role=UserRole.admin, unit_id=unit.id)
+    login(superadmin)
+    resp = client.delete(f"/admin/units/{unit.id}")
+    assert resp.status_code == 400
+    assert "admin" in resp.json()["detail"]
+
+
+def test_hapus_unit_tidak_ada_404(client, login, superadmin):
+    login(superadmin)
+    assert client.delete("/admin/units/9999").status_code == 404
 
 
 # --- Undang user -------------------------------------------------------------

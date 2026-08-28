@@ -14,14 +14,19 @@ from sqlmodel import Session, col, select
 from app.core.database import engine
 from app.core.oauth import ALLOWED_EMAIL_DOMAIN
 from app.dependencies import require_superadmin
+from app.models.letter_type import LetterType
 from app.models.organization import Unit, User, UserRole
-from app.routers.admin import MAX_SLUG_LENGTH, SLUG_PATTERN
+from app.routers.admin import MAX_SLUG_LENGTH, SLUG_PATTERN, UPLOAD_DIR
 
 router = APIRouter(prefix="/admin", tags=["Admin - Superadmin"])
 
 
 class CreateUnitRequest(BaseModel):
     slug: str
+    name: str
+
+
+class UpdateUnitRequest(BaseModel):
     name: str
 
 
@@ -71,6 +76,80 @@ def create_unit(payload: CreateUnitRequest, _: User = Depends(require_superadmin
         session.commit()
         session.refresh(unit)
         return {"id": unit.id, "slug": unit.slug, "name": unit.name}
+
+
+@router.patch("/units/{unit_id}")
+def update_unit(unit_id: int, payload: UpdateUnitRequest, _: User = Depends(require_superadmin)):
+    """
+    Hanya nama (label tampilan) yang bisa diubah. Slug sengaja permanen: ia
+    dipakai sebagai nama folder template di disk (app/templates/uploaded/
+    {slug}/) dan di URL /generate/{unit_slug}/{slug}, jadi mengubahnya perlu
+    memindahkan file + memperbarui semua template_path — pekerjaan setingkat
+    migrasi, di luar cakupan endpoint ini.
+    """
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nama unit wajib diisi.")
+
+    with Session(engine) as session:
+        unit = session.get(Unit, unit_id)
+        if unit is None:
+            raise HTTPException(status_code=404, detail="Unit tidak ditemukan.")
+
+        unit.name = name
+        session.add(unit)
+        session.commit()
+        session.refresh(unit)
+        return {"id": unit.id, "slug": unit.slug, "name": unit.name}
+
+
+@router.delete("/units/{unit_id}")
+def delete_unit(unit_id: int, _: User = Depends(require_superadmin)):
+    """
+    Hanya boleh menghapus unit yang benar-benar kosong: tidak ada jenis surat
+    (termasuk yang diarsipkan) dan tidak ada user yang terikat. Ini untuk
+    membatalkan unit yang salah dibuat, bukan untuk "mengosongkan" unit aktif —
+    makanya menolak, bukan ikut menghapus isinya.
+    """
+    with Session(engine) as session:
+        unit = session.get(Unit, unit_id)
+        if unit is None:
+            raise HTTPException(status_code=404, detail="Unit tidak ditemukan.")
+
+        letter_type_count = len(
+            session.exec(select(LetterType).where(LetterType.unit_id == unit_id)).all()
+        )
+        user_count = len(session.exec(select(User).where(User.unit_id == unit_id)).all())
+
+        if letter_type_count or user_count:
+            bagian = []
+            if letter_type_count:
+                bagian.append(f"{letter_type_count} jenis surat (termasuk yang diarsipkan)")
+            if user_count:
+                bagian.append(f"{user_count} admin")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Unit '{unit.name}' masih punya {' dan '.join(bagian)}. "
+                    "Pindahkan atau hapus dulu sebelum unitnya bisa dihapus."
+                ),
+            )
+
+        unit_slug = unit.slug
+        session.delete(unit)
+        session.commit()
+
+    # Folder template unit (app/templates/uploaded/{slug}/) mungkin terlanjur
+    # dibuat meski kosong — dibersihkan kalau ada dan benar-benar tidak berisi
+    # apa pun. Kegagalan di sini tidak membatalkan penghapusan unit.
+    unit_dir = UPLOAD_DIR / unit_slug
+    try:
+        if unit_dir.is_dir() and not any(unit_dir.iterdir()):
+            unit_dir.rmdir()
+    except OSError:
+        pass
+
+    return {"id": unit_id, "deleted": True}
 
 
 @router.get("/users")
