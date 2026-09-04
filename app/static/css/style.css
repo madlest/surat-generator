@@ -341,15 +341,46 @@ select:focus {
 }
 
 .admin-email-config {
-  margin: 18px 0 4px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--teal);
+  margin: 28px 0 4px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: var(--paper-raised);
+  background: var(--teal-tint);
+}
+.admin-email-config-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--teal-dark);
+}
+.admin-email-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--ink);
+}
+.admin-email-toggle input {
+  width: auto;
+  margin-top: 3px;
+  flex: none;
+}
+.admin-email-config-note {
+  margin: 8px 0 0;
+  padding-left: 26px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
 }
 .admin-email-config .field {
-  margin-top: 10px;
+  margin-top: 14px;
+}
+.admin-email-config #admin-email-fields > .admin-email-config-note {
+  padding-left: 2px;
 }
 
 .send-email-area {

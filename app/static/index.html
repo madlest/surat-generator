@@ -323,20 +323,23 @@
             muncul di badan surat.
           </small>
 
-          <div class="admin-email-config" id="admin-email-config">
-            <label class="admin-required-toggle">
+          <section class="admin-email-config" id="admin-email-config">
+            <h3 class="admin-email-config-title">Pengiriman via email</h3>
+            <label class="admin-email-toggle">
               <input type="checkbox" id="admin-send-email-enabled" />
-              Kirim surat ini ke penerima lewat email
+              <span>
+                Kirim surat ini ke penerima lewat email setelah digenerate
+              </span>
             </label>
-            <small class="field-hint" style="display: block; margin: 4px 2px 10px">
-              Perlu satu field bertipe <strong>Email</strong> di level
+            <p class="admin-email-config-note">
+              Butuh satu field bertipe <strong>Email</strong> di level
               <strong>Per penerima</strong> sebagai alamat tujuan. Setelah
-              generate, akan muncul tombol "Kirim Email" (perlu Gmail Anda
-              terhubung).
-            </small>
+              generate, tombol <em>Kirim Email</em> muncul di langkah "Buat
+              Dokumen" (perlu Gmail Anda terhubung).
+            </p>
             <div id="admin-email-fields" hidden>
               <div class="field">
-                <label for="admin-email-subject">Subjek Email</label>
+                <label for="admin-email-subject">Subjek email</label>
                 <input
                   type="text"
                   id="admin-email-subject"
@@ -344,19 +347,19 @@
                 />
               </div>
               <div class="field">
-                <label for="admin-email-body">Isi Email</label>
+                <label for="admin-email-body">Isi email</label>
                 <textarea
                   id="admin-email-body"
                   rows="5"
                   placeholder="Yth. {nama_dosen},&#10;&#10;Terlampir surat resmi dari Fakultas. Terima kasih."
                 ></textarea>
               </div>
-              <small class="field-hint">
+              <p class="admin-email-config-note">
                 Pakai <code>{key_field}</code> untuk menyisipkan nilai penerima
                 (mis. <code>{nama_dosen}</code>). PDF surat otomatis dilampirkan.
-              </small>
+              </p>
             </div>
-          </div>
+          </section>
 
           <button
             type="button"
