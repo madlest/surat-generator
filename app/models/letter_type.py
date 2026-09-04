@@ -50,6 +50,16 @@ class LetterType(SQLModel, table=True):
     # penghapusan sungguhan dilakukan terpisah lewat halaman arsip.
     deleted_at: datetime | None = Field(default=None)
 
+    # Kirim surat via email (v2.1). Kapabilitas independen — nanti ada
+    # send_whatsapp_enabled terpisah. Saat True, kedua template di bawah wajib
+    # terisi (divalidasi di layer API, bukan DB) dan LetterType ini wajib
+    # punya tepat satu field bertipe `email` di level recipient sebagai tujuan.
+    # Subjek & badan boleh memakai placeholder {nama_field} yang diganti nilai
+    # per-penerima saat kirim.
+    send_email_enabled: bool = Field(default=False)
+    email_subject_template: str | None = Field(default=None)
+    email_body_template: str | None = Field(default=None)
+
     unit: Unit = Relationship(back_populates="letter_types")
     fields: list["LetterField"] = Relationship(back_populates="letter_type")
 

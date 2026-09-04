@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     # dulu. Dipisah koma, misal: "tri@umbjm.ac.id,rekan@umbjm.ac.id"
     superadmin_emails: str = ""
 
+    # Kunci Fernet (base64 urlsafe, 32 byte) untuk mengenkripsi refresh token
+    # Gmail per-admin sebelum disimpan ke DB (fitur "Hubungkan Gmail" v2.1).
+    # Bikin sekali: `python -c "from cryptography.fernet import Fernet;
+    # print(Fernet.generate_key().decode())"` lalu taruh di EMAIL_TOKEN_KEY.
+    # Kosong = fitur kirim email mati (app tetap jalan). JANGAN diganti setelah
+    # ada token tersimpan — semua koneksi Gmail lama jadi tak terdekripsi dan
+    # adminnya harus menghubungkan ulang.
+    email_token_key: str = ""
+
     @property
     def superadmin_email_list(self) -> list[str]:
         return [e.strip().lower() for e in self.superadmin_emails.split(",") if e.strip()]

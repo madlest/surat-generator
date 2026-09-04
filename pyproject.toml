@@ -16,6 +16,7 @@ dependencies = [
     "sqlmodel>=0.0.39",
     "uvicorn>=0.52.4",
     "requests>=2.32.0",
+    "cryptography>=43.0.0",
 ]
 
 [dependency-groups]

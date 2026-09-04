@@ -71,4 +71,17 @@ class User(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Refresh token OAuth Gmail milik admin ini, TERENKRIPSI (Fernet, lihat
+    # app/core/crypto.py). Terisi saat admin menekan "Hubungkan Gmail" dan
+    # menyetujui scope gmail.send; None = belum terhubung. Email dikirim
+    # sebagai user.email — tidak ada alamat "from" terpisah. Sengaja dipisah
+    # dari alur login utama supaya admin yang tak pernah kirim surat tidak
+    # kena consent screen scope sensitif.
+    gmail_refresh_token_enc: str | None = Field(default=None)
+    gmail_connected_at: datetime | None = Field(default=None)
+
     unit: Unit | None = Relationship(back_populates="users")
+
+    @property
+    def gmail_connected(self) -> bool:
+        return self.gmail_refresh_token_enc is not None

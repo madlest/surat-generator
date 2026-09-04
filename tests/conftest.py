@@ -36,6 +36,18 @@ def engine():
 
 
 @pytest.fixture(autouse=True)
+def _email_token_key(monkeypatch):
+    """Kunci Fernet sungguhan (acak per test) supaya app/core/crypto.py bisa
+    dipakai tanpa .env. Di-set di instance settings, bukan env var, karena
+    settings sudah ter-load saat test mulai."""
+    from cryptography.fernet import Fernet
+
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "email_token_key", Fernet.generate_key().decode())
+
+
+@pytest.fixture(autouse=True)
 def _patch_engine(engine, monkeypatch):
     monkeypatch.setattr(database_module, "engine", engine)
     import app.routers.admin as admin_module
