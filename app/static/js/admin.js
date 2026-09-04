@@ -55,6 +55,10 @@ function resetAdminWizard() {
   document.getElementById("admin-name").value = "";
   document.getElementById("admin-slug").value = "";
   document.getElementById("admin-fields-list").innerHTML = "";
+  document.getElementById("admin-send-email-enabled").checked = false;
+  document.getElementById("admin-email-subject").value = "";
+  document.getElementById("admin-email-body").value = "";
+  document.getElementById("admin-email-fields").hidden = true;
   document.getElementById("admin-no-vars-note").style.display = "none";
   document.getElementById("admin-step-2").style.display = "none";
   document.getElementById("admin-inspect-status").className = "status";
@@ -177,6 +181,15 @@ export async function openEditWizard(unitSlug, slug) {
         .map((f) => f.field_key),
       letterType.fields || [],
     );
+
+    const sendEmail = !!letterType.send_email_enabled;
+    document.getElementById("admin-send-email-enabled").checked = sendEmail;
+    document.getElementById("admin-email-subject").value =
+      letterType.email_subject_template || "";
+    document.getElementById("admin-email-body").value =
+      letterType.email_body_template || "";
+    document.getElementById("admin-email-fields").hidden = !sendEmail;
+
     document.getElementById("admin-step-2").style.display = "block";
     statusEl.className = "status";
     statusEl.textContent = "";
@@ -560,6 +573,31 @@ document
       .appendChild(makeFieldRow({ isManual: true }));
   });
 
+document
+  .getElementById("admin-send-email-enabled")
+  .addEventListener("change", (e) => {
+    document.getElementById("admin-email-fields").hidden = !e.target.checked;
+  });
+
+// Cek ringan sebelum submit: kirim email butuh tepat satu field email di level
+// penerima (server tetap menegakkan ini, ini cuma pesan lebih cepat & jelas).
+function emailConfigError(fieldsConfig) {
+  if (!document.getElementById("admin-send-email-enabled").checked) return null;
+  const emailRecipientFields = fieldsConfig.filter(
+    (f) => f.field_type === "email" && f.level === "recipient",
+  );
+  if (emailRecipientFields.length !== 1) {
+    return `Kirim email butuh tepat satu field bertipe Email di level "Per penerima" sebagai alamat tujuan. Sekarang ada ${emailRecipientFields.length}.`;
+  }
+  if (
+    !document.getElementById("admin-email-subject").value.trim() ||
+    !document.getElementById("admin-email-body").value.trim()
+  ) {
+    return "Subjek dan isi email wajib diisi kalau kirim email diaktifkan.";
+  }
+  return null;
+}
+
 document.getElementById("admin-name").addEventListener("input", (e) => {
   if (!slugManuallyEdited) {
     document.getElementById("admin-slug").value = slugify(
@@ -606,6 +644,13 @@ document
 
     const fieldsConfig = bacaFieldsDariForm();
 
+    const emailErr = emailConfigError(fieldsConfig);
+    if (emailErr) {
+      statusEl.className = "status show error";
+      statusEl.textContent = emailErr;
+      return;
+    }
+
     statusEl.className = "status show loading";
     statusEl.textContent = sedangMenyunting
       ? "Menyimpan perubahan…"
@@ -615,6 +660,20 @@ document
       const formData = new FormData();
       formData.append("name", name);
       formData.append("fields_config", JSON.stringify(fieldsConfig));
+      formData.append(
+        "send_email_enabled",
+        document.getElementById("admin-send-email-enabled").checked
+          ? "true"
+          : "false",
+      );
+      formData.append(
+        "email_subject_template",
+        document.getElementById("admin-email-subject").value.trim(),
+      );
+      formData.append(
+        "email_body_template",
+        document.getElementById("admin-email-body").value.trim(),
+      );
       if (selectedTemplateFile) {
         formData.append("template_file", selectedTemplateFile);
       }

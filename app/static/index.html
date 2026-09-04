@@ -41,6 +41,21 @@
           </div>
         </div>
         <nav class="topbar-actions">
+          <span class="topbar-gmail" id="topbar-gmail" hidden>
+            <span class="gmail-dot" id="gmail-dot" aria-hidden="true"></span>
+            <span class="gmail-label" id="gmail-label"></span>
+            <button type="button" class="link-btn" id="gmail-connect-btn" hidden>
+              Hubungkan Gmail
+            </button>
+            <button
+              type="button"
+              class="link-btn"
+              id="gmail-disconnect-btn"
+              hidden
+            >
+              Putuskan
+            </button>
+          </span>
           <button
             type="button"
             class="link-btn"
@@ -54,6 +69,18 @@
           </form>
         </nav>
       </header>
+
+      <div class="app-banner" id="app-banner" hidden>
+        <span id="app-banner-text"></span>
+        <button
+          type="button"
+          class="app-banner-close"
+          id="app-banner-close"
+          aria-label="Tutup"
+        >
+          &times;
+        </button>
+      </div>
 
       <!-- ================= LOGIN ================= -->
       <div class="view active" id="view-login">
@@ -295,6 +322,41 @@
             email tujuan pengiriman surat. Nilainya diisi di form/CSV tapi tidak
             muncul di badan surat.
           </small>
+
+          <div class="admin-email-config" id="admin-email-config">
+            <label class="admin-required-toggle">
+              <input type="checkbox" id="admin-send-email-enabled" />
+              Kirim surat ini ke penerima lewat email
+            </label>
+            <small class="field-hint" style="display: block; margin: 4px 2px 10px">
+              Perlu satu field bertipe <strong>Email</strong> di level
+              <strong>Per penerima</strong> sebagai alamat tujuan. Setelah
+              generate, akan muncul tombol "Kirim Email" (perlu Gmail Anda
+              terhubung).
+            </small>
+            <div id="admin-email-fields" hidden>
+              <div class="field">
+                <label for="admin-email-subject">Subjek Email</label>
+                <input
+                  type="text"
+                  id="admin-email-subject"
+                  placeholder="Contoh: Surat untuk {nama_dosen}"
+                />
+              </div>
+              <div class="field">
+                <label for="admin-email-body">Isi Email</label>
+                <textarea
+                  id="admin-email-body"
+                  rows="5"
+                  placeholder="Yth. {nama_dosen},&#10;&#10;Terlampir surat resmi dari Fakultas. Terima kasih."
+                ></textarea>
+              </div>
+              <small class="field-hint">
+                Pakai <code>{key_field}</code> untuk menyisipkan nilai penerima
+                (mis. <code>{nama_dosen}</code>). PDF surat otomatis dilampirkan.
+              </small>
+            </div>
+          </div>
 
           <button
             type="button"
