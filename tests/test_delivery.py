@@ -73,6 +73,26 @@ def test_plan_lewati_tanpa_email():
     assert plan_email_deliveries(m, "email", "S", "B") == []
 
 
+def test_plan_render_pakai_render_values_kalau_ada():
+    # email address dicari di recipient_values (field manual), tapi template
+    # dirender dari render_values (batch + penerima). Meniru manifest asli.
+    m = [
+        {
+            "index": 1,
+            "label": "Budi",
+            "pdf_path": "/tmp/a.pdf",
+            "recipient_values": {"email_tujuan": "budi@x.com", "nama_dosen": "Budi"},
+            "render_values": {"nama_dosen": "Budi", "program_studi": "Farmasi"},
+        }
+    ]
+    plans = plan_email_deliveries(
+        m, "email_tujuan", "Surat {nama_dosen}", "Prodi {program_studi}"
+    )
+    assert plans[0]["contact"] == "budi@x.com"
+    assert plans[0]["subject"] == "Surat Budi"
+    assert plans[0]["body"] == "Prodi Farmasi"
+
+
 # --- run_email_send_batch ------------------------------------------
 
 @pytest.fixture()

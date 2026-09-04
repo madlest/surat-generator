@@ -154,7 +154,15 @@ def generate_batch(
                         "index": index,
                         "label": label,
                         "pdf_path": final_pdf_path,
+                        # Nilai mentah penerima — dipakai mencari alamat email/no
+                        # WA (field manual, tidak ikut ke `context`).
                         "recipient_values": recipient_values,
+                        # Nilai untuk merender template email/WA: gabungan field
+                        # batch + penerima yang SUDAH diformat (tanggal Indonesia
+                        # dll), plus nilai mentah sebagai fallback untuk field
+                        # manual. Jadi {program_studi} (batch) & {nama_dosen}
+                        # (penerima) sama-sama tersedia.
+                        "render_values": {**recipient_values, **context},
                     }
                 )
 

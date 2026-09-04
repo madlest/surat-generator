@@ -58,6 +58,9 @@ def plan_email_deliveries(
 
     for item in recipients_manifest:
         values = item.get("recipient_values", {})
+        # Untuk merender subjek/badan: pakai render_values (batch + penerima,
+        # sudah diformat) kalau ada; fallback ke nilai penerima mentah.
+        render_values = item.get("render_values", values)
         raw = values.get(email_field_key)
         if not raw:
             continue  # penerima tanpa email — dilewati (UI mestinya sudah cegah)
@@ -70,8 +73,8 @@ def plan_email_deliveries(
             by_email[email] = {
                 "contact": email,
                 "label": label or email,
-                "subject": render_template(subject_template, values),
-                "body": render_template(body_template, values),
+                "subject": render_template(subject_template, render_values),
+                "body": render_template(body_template, render_values),
                 "pdf_paths": [],
                 "attachment_names": [],
             }

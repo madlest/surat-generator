@@ -59,11 +59,14 @@ def done_job(unit, tmp_path):
         "email_field_key": "email",
         "recipients": [
             {"index": 1, "label": "Budi", "pdf_path": str(p1),
-             "recipient_values": {"nama": "Budi", "email": "budi@x.com"}},
+             "recipient_values": {"nama": "Budi", "email": "budi@x.com"},
+             "render_values": {"nama": "Budi", "program_studi": "Farmasi"}},
             {"index": 2, "label": "Sri", "pdf_path": str(p2),
-             "recipient_values": {"nama": "Sri", "email": "sri@x.com"}},
+             "recipient_values": {"nama": "Sri", "email": "sri@x.com"},
+             "render_values": {"nama": "Sri", "program_studi": "Farmasi"}},
             {"index": 3, "label": "Doni", "pdf_path": str(p3),
-             "recipient_values": {"nama": "Doni", "email": "budi@x.com"}},
+             "recipient_values": {"nama": "Doni", "email": "budi@x.com"},
+             "render_values": {"nama": "Doni", "program_studi": "Farmasi"}},
         ],
     })
     return job_id
