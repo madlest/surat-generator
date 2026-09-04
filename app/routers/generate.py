@@ -5,6 +5,7 @@ import json
 import logging
 import shutil
 import uuid
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -13,11 +14,19 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.core.crypto import SecretCryptoError, decrypt_secret
 from app.core.database import engine
 from app.core.job_store import job_store
 from app.dependencies import get_current_user, scope_unit_id
-from app.models.letter_type import LetterField
+from app.models.delivery import Delivery, DeliveryStatus
+from app.models.letter_type import FieldType, LetterField
 from app.models.organization import User
+from app.services.delivery import (
+    create_delivery_rows,
+    deliveries_for_batch,
+    plan_email_deliveries,
+    run_email_send_batch,
+)
 from app.services.document_generator import DocumentGenerationError
 from app.services.dynamic_batch_generator import (
     DynamicBatchGenerationError,
@@ -137,11 +146,13 @@ def _run_batch_job(
     recipients: list[dict],
     recipient_fields: list[LetterField],
     working_dir: str,
+    send_meta: dict,
 ):
     try:
         def on_progress(current: int, total: int):
             job_store.update_progress(job_id, current)
 
+        manifest: list[dict] = []
         zip_path = generate_batch(
             template_path=template_path,
             base_info=base_info,
@@ -151,8 +162,24 @@ def _run_batch_job(
             recipient_fields=recipient_fields,
             working_dir=working_dir,
             progress_callback=on_progress,
+            manifest_out=manifest,
         )
         job_store.mark_done(job_id, zip_path)
+        # Konteks kirim disimpan APA ADANYA (termasuk saat send_email_enabled
+        # False) — endpoint kirim yang memutuskan boleh/tidaknya. Ini juga yang
+        # dipakai retry untuk mengambil ulang path PDF selama job belum tersapu.
+        job_store.attach_send_context(
+            job_id,
+            {
+                "letter_type_id": send_meta["letter_type_id"],
+                "unit_id": send_meta["unit_id"],
+                "send_email_enabled": send_meta["send_email_enabled"],
+                "email_subject_template": send_meta["email_subject_template"],
+                "email_body_template": send_meta["email_body_template"],
+                "email_field_key": send_meta["email_field_key"],
+                "recipients": manifest,
+            },
+        )
     except (DocumentGenerationError, PdfMergeError, DynamicBatchGenerationError) as e:
         job_store.mark_error(job_id, str(e))
         shutil.rmtree(working_dir, ignore_errors=True)
@@ -313,6 +340,19 @@ def start_generate_job(
     # memantau job satu sama lain (konsisten dengan prinsip admin di-scope ke
     # unit, bukan ke akun pribadi).
     job_store.create_job(job_id=job_id, total=len(recipients), unit_id=letter_type.unit_id)
+
+    email_field_key = next(
+        (f.field_key for f in recipient_fields if f.field_type == FieldType.email), None
+    )
+    send_meta = {
+        "letter_type_id": letter_type.id,
+        "unit_id": letter_type.unit_id,
+        "send_email_enabled": letter_type.send_email_enabled,
+        "email_subject_template": letter_type.email_subject_template,
+        "email_body_template": letter_type.email_body_template,
+        "email_field_key": email_field_key,
+    }
+
     background_tasks.add_task(
         _run_batch_job,
         job_id,
@@ -323,6 +363,7 @@ def start_generate_job(
         recipients,
         recipient_fields,
         str(working_dir),
+        send_meta,
     )
 
     return {"job_id": job_id, "total": len(recipients)}
@@ -411,13 +452,27 @@ def _check_job_unit_access(job: dict, current_user: User) -> None:
         raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
 
 
+def _public_job_view(job: dict) -> dict:
+    """Bentuk job untuk response status: buang `send_context` (berisi data
+    penerima mentah + path server) dan ganti dengan flag ringkas apakah job ini
+    bisa dikirim via email."""
+    ctx = job.get("send_context") or {}
+    view = {k: v for k, v in job.items() if k != "send_context"}
+    view["can_send_email"] = bool(
+        job.get("status") == "done"
+        and ctx.get("send_email_enabled")
+        and ctx.get("email_field_key")
+    )
+    return view
+
+
 @router.get("/jobs/{job_id}/status")
 def get_job_status(job_id: str, current_user: User = Depends(get_current_user)):
     job = job_store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
     _check_job_unit_access(job, current_user)
-    return job
+    return _public_job_view(job)
 
 
 @router.get("/jobs/{job_id}/download")
@@ -433,15 +488,213 @@ def download_job_result(
     if job["status"] != "done":
         raise HTTPException(status_code=409, detail="Dokumen belum selesai diproses.")
 
-    zip_path = job["zip_path"]
-    working_dir = Path(zip_path).parent
-
-    background_tasks.add_task(shutil.rmtree, working_dir, ignore_errors=True)
-    background_tasks.add_task(job_store.delete, job_id)
-
+    # Working dir & entri job SENGAJA tidak dihapus di sini (dulu iya): setelah
+    # generate, admin bisa menekan "Kirim Email" yang butuh PDF per-penerima di
+    # working dir ini. Pembersihan diserahkan ke job_store.sweep_stale (TTL 1
+    # jam) yang jalan tiap job baru — cukup untuk skala pemakaian ini, dan
+    # membuat urutan download vs kirim jadi bebas + bisa unduh ulang.
     return FileResponse(
-        path=zip_path,
+        path=job["zip_path"],
         media_type="application/zip",
         filename="hasil_surat.zip",
-        background=background_tasks,
     )
+
+
+# --- Kirim surat via email (Stage B4) ---------------------------------------
+
+@router.post("/jobs/{job_id}/send-email")
+def send_job_via_email(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    _check_job_unit_access(job, current_user)
+    if job["status"] != "done":
+        raise HTTPException(status_code=409, detail="Dokumen belum selesai diproses.")
+
+    ctx = job.get("send_context") or {}
+    if not ctx.get("send_email_enabled") or not ctx.get("email_field_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="Jenis surat ini tidak dikonfigurasi untuk dikirim via email.",
+        )
+    if not current_user.gmail_connected or not current_user.gmail_refresh_token_enc:
+        raise HTTPException(
+            status_code=400,
+            detail="Hubungkan akun Gmail Anda dulu sebelum mengirim surat via email.",
+        )
+
+    try:
+        refresh_token = decrypt_secret(current_user.gmail_refresh_token_enc)
+    except SecretCryptoError:
+        raise HTTPException(
+            status_code=400,
+            detail="Koneksi Gmail Anda tidak terbaca. Putuskan lalu hubungkan ulang Gmail.",
+        )
+
+    planned = plan_email_deliveries(
+        ctx["recipients"],
+        ctx["email_field_key"],
+        ctx.get("email_subject_template") or "",
+        ctx.get("email_body_template") or "",
+    )
+    if not planned:
+        raise HTTPException(
+            status_code=422,
+            detail="Tidak ada penerima yang punya alamat email untuk dikirimi.",
+        )
+
+    send_batch_id = uuid.uuid4().hex
+    with Session(engine) as session:
+        rows = create_delivery_rows(
+            session,
+            planned=planned,
+            letter_type_id=ctx["letter_type_id"],
+            unit_id=ctx["unit_id"],
+            send_batch_id=send_batch_id,
+            job_id=job_id,
+            triggered_by_user_id=current_user.id,
+        )
+        payloads = [
+            {
+                "delivery_id": row.id,
+                "contact": plan["contact"],
+                "subject": plan["subject"],
+                "body": plan["body"],
+                "pdf_paths": plan["pdf_paths"],
+            }
+            for row, plan in zip(rows, planned)
+        ]
+
+    background_tasks.add_task(
+        run_email_send_batch,
+        engine,
+        payloads=payloads,
+        refresh_token=refresh_token,
+        sender=current_user.email,
+    )
+
+    return {
+        "send_batch_id": send_batch_id,
+        "total_email": len(planned),
+        "total_penerima": len(ctx["recipients"]),
+    }
+
+
+def _load_batch_or_404(session: Session, send_batch_id: str, current_user: User) -> list[Delivery]:
+    rows = deliveries_for_batch(session, send_batch_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Batch pengiriman tidak ditemukan.")
+    unit_filter = scope_unit_id(current_user)
+    if unit_filter is not None and rows[0].unit_id != unit_filter:
+        raise HTTPException(status_code=404, detail="Batch pengiriman tidak ditemukan.")
+    return rows
+
+
+@router.get("/send-batches/{send_batch_id}/status")
+def get_send_batch_status(send_batch_id: str, current_user: User = Depends(get_current_user)):
+    with Session(engine) as session:
+        rows = _load_batch_or_404(session, send_batch_id, current_user)
+
+    counts = Counter(r.status.value for r in rows)
+    return {
+        "send_batch_id": send_batch_id,
+        "total": len(rows),
+        "pending": counts.get("pending", 0),
+        "sent": counts.get("sent", 0),
+        "failed": counts.get("failed", 0),
+        "auth_expired": counts.get("auth_expired", 0),
+        "selesai": all(r.status != DeliveryStatus.pending for r in rows),
+        "deliveries": [
+            {
+                "id": r.id,
+                "kontak": r.recipient_contact,
+                "nama": r.recipient_label,
+                "status": r.status.value,
+                "error": r.error_message,
+                "lampiran": json.loads(r.attachment_names),
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.post("/send-batches/{send_batch_id}/retry")
+def retry_send_batch(
+    send_batch_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
+    with Session(engine) as session:
+        rows = _load_batch_or_404(session, send_batch_id, current_user)
+
+    retryable = [r for r in rows if r.status in (DeliveryStatus.failed, DeliveryStatus.auth_expired)]
+    if not retryable:
+        raise HTTPException(status_code=400, detail="Tidak ada pengiriman yang perlu diulang.")
+
+    if not current_user.gmail_connected or not current_user.gmail_refresh_token_enc:
+        raise HTTPException(
+            status_code=400,
+            detail="Hubungkan akun Gmail Anda dulu sebelum mengirim ulang.",
+        )
+    try:
+        refresh_token = decrypt_secret(current_user.gmail_refresh_token_enc)
+    except SecretCryptoError:
+        raise HTTPException(
+            status_code=400,
+            detail="Koneksi Gmail Anda tidak terbaca. Putuskan lalu hubungkan ulang Gmail.",
+        )
+
+    # PDF per-penerima tidak disimpan di DB — diambil ulang dari job_store lewat
+    # job_id baris ini. Kalau job sudah tersapu (TTL 1 jam), tidak bisa diulang.
+    job_id = retryable[0].job_id
+    job = job_store.get(job_id) if job_id else None
+    ctx = (job or {}).get("send_context") or {}
+    if not ctx.get("recipients"):
+        raise HTTPException(
+            status_code=409,
+            detail="Berkas surat sudah tidak tersedia (job kedaluwarsa). Generate ulang lalu kirim.",
+        )
+
+    plan_by_contact = {
+        p["contact"]: p
+        for p in plan_email_deliveries(
+            ctx["recipients"],
+            ctx["email_field_key"],
+            ctx.get("email_subject_template") or "",
+            ctx.get("email_body_template") or "",
+        )
+    }
+
+    payloads = []
+    with Session(engine) as session:
+        for row in retryable:
+            plan = plan_by_contact.get(row.recipient_contact)
+            if plan is None:
+                continue
+            db_row = session.get(Delivery, row.id)
+            db_row.status = DeliveryStatus.pending
+            db_row.error_message = None
+            session.add(db_row)
+            payloads.append(
+                {
+                    "delivery_id": row.id,
+                    "contact": row.recipient_contact,
+                    "subject": row.subject,   # snapshot asli, bukan render ulang
+                    "body": row.body,
+                    "pdf_paths": plan["pdf_paths"],
+                }
+            )
+        session.commit()
+
+    background_tasks.add_task(
+        run_email_send_batch,
+        engine,
+        payloads=payloads,
+        refresh_token=refresh_token,
+        sender=current_user.email,
+    )
+    return {"retrying": len(payloads)}

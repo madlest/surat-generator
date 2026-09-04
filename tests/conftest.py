@@ -19,6 +19,7 @@ import app.core.database as database_module
 
 # Impor eksplisit supaya semua tabel terdaftar di SQLModel.metadata sebelum
 # create_all dipanggil (letter_type mengimpor organization, bukan sebaliknya).
+import app.models.delivery  # noqa: F401
 import app.models.letter_type  # noqa: F401
 from app.core.security import SESSION_COOKIE_NAME, create_session_token
 from app.models.organization import User, UserRole

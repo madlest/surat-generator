@@ -20,7 +20,7 @@ if config.config_file_name is not None:
 from sqlmodel import SQLModel
 
 from app.core.database import DATABASE_URL
-from app.models import letter_type, organization  # noqa: F401
+from app.models import delivery, letter_type, organization  # noqa: F401
 
 target_metadata = SQLModel.metadata
 

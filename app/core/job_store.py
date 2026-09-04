@@ -30,7 +30,17 @@ class JobStore:
                 # pribadi, jadi sesama admin unit yang sama boleh saling cek
                 # job satu sama lain.
                 "unit_id": unit_id,
+                # Diisi setelah job selesai (attach_send_context): manifest
+                # penerima + konfigurasi email LetterType, dipakai endpoint
+                # "Kirim Email" supaya tidak perlu generate ulang. None sampai
+                # job done — dan tetap None kalau LetterType tidak mengirim email.
+                "send_context": None,
             }
+
+    def attach_send_context(self, job_id: str, send_context: dict) -> None:
+        with self._lock:
+            if job_id in self._jobs:
+                self._jobs[job_id]["send_context"] = send_context
 
     def update_progress(self, job_id: str, current: int) -> None:
         with self._lock:

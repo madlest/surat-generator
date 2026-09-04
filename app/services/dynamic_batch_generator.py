@@ -96,6 +96,7 @@ def generate_batch(
     recipient_fields: list[LetterField],
     working_dir: str,
     progress_callback=None,
+    manifest_out: list | None = None,
 ) -> str:
     """
     Generate PDF untuk setiap recipient (cover letter + lampiran tergabung),
@@ -103,6 +104,10 @@ def generate_batch(
 
     base_info: {nomor_surat, tempat_surat, tanggal_surat (date), perihal_surat,
                 lampirans: [{"judul": str, "file_path": str}, ...]}
+
+    manifest_out: kalau diberikan (list), tiap recipient yang berhasil di-append
+    sebagai {index, label, pdf_path, recipient_values} — dipakai Stage B4 untuk
+    mengirim tiap PDF ke penerimanya via email tanpa generate ulang.
     """
     working_path = Path(working_dir)
     individual_dir = working_path / "individual"
@@ -142,6 +147,16 @@ def generate_batch(
 
             merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
             final_pdf_paths.append(final_pdf_path)
+
+            if manifest_out is not None:
+                manifest_out.append(
+                    {
+                        "index": index,
+                        "label": label,
+                        "pdf_path": final_pdf_path,
+                        "recipient_values": recipient_values,
+                    }
+                )
 
             # Dilaporkan setelah merge selesai, bukan sebelum, supaya angka
             # progress mencerminkan dokumen yang benar-benar sudah jadi.

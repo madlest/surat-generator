@@ -215,6 +215,53 @@ def _normalize_fields_config(fields_config: str) -> list[dict]:
     return normalized
 
 
+_TRUE_STRINGS = {"1", "true", "on", "yes", "ya"}
+
+
+def _validate_email_config(
+    raw_enabled: str,
+    raw_subject: str,
+    raw_body: str,
+    normalized_fields: list[dict],
+) -> tuple[bool, str | None, str | None]:
+    """
+    Validasi konfigurasi kirim-email sebuah jenis surat. Dipakai bersama oleh
+    create & update.
+
+    Kalau diaktifkan: wajib TEPAT SATU field bertipe `email` di level
+    `recipient` (alamat tujuan pengiriman), dan subjek + isi email tidak boleh
+    kosong. Kalau tidak diaktifkan: nilai subjek/isi tetap disimpan apa adanya
+    (boleh None) supaya draft tidak hilang saat toggle dimatikan sementara.
+    """
+    enabled = str(raw_enabled).strip().lower() in _TRUE_STRINGS
+    subject = (raw_subject or "").strip() or None
+    body = (raw_body or "").strip() or None
+
+    if not enabled:
+        return False, subject, body
+
+    email_recipient_fields = [
+        f
+        for f in normalized_fields
+        if f["field_type"] == FieldType.email.value and f["level"] == FieldLevel.recipient.value
+    ]
+    if len(email_recipient_fields) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Kirim email perlu tepat satu field bertipe Email di level penerima "
+                "sebagai alamat tujuan. Sekarang ada "
+                f"{len(email_recipient_fields)}."
+            ),
+        )
+    if not subject or not body:
+        raise HTTPException(
+            status_code=400,
+            detail="Subjek dan isi email wajib diisi kalau kirim email diaktifkan.",
+        )
+    return True, subject, body
+
+
 def _save_template(template_file: UploadFile, dest_path: Path) -> None:
     """
     Simpan template docx ke lokasi tujuan, lalu pastikan isinya benar-benar
@@ -280,6 +327,9 @@ def create_letter_type(
     fields_config: str = Form(...),  # JSON string: list of {field_key, label, field_type, level, required}
     template_file: UploadFile = File(...),
     unit_id: int | None = Form(default=None),
+    send_email_enabled: str = Form(default="false"),
+    email_subject_template: str = Form(default=""),
+    email_body_template: str = Form(default=""),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -292,6 +342,9 @@ def create_letter_type(
     """
     name, slug = _validate_identity(name, slug)
     normalized_fields = _normalize_fields_config(fields_config)
+    email_enabled, email_subject, email_body = _validate_email_config(
+        send_email_enabled, email_subject_template, email_body_template, normalized_fields
+    )
 
     with Session(engine) as session:
         target_unit = _resolve_target_unit(session, current_user, unit_id)
@@ -332,6 +385,9 @@ def create_letter_type(
                 slug=slug,
                 template_path=final_path.as_posix(),
                 unit_id=target_unit.id,
+                send_email_enabled=email_enabled,
+                email_subject_template=email_subject,
+                email_body_template=email_body,
             )
             session.add(letter_type)
             session.commit()
@@ -363,6 +419,9 @@ def update_letter_type(
     new_slug: str = Form(...),
     fields_config: str = Form(...),
     template_file: UploadFile | None = File(default=None),
+    send_email_enabled: str = Form(default="false"),
+    email_subject_template: str = Form(default=""),
+    email_body_template: str = Form(default=""),
     unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
@@ -387,6 +446,9 @@ def update_letter_type(
     """
     name, new_slug = _validate_identity(name, new_slug)
     normalized_fields = _normalize_fields_config(fields_config)
+    email_enabled, email_subject, email_body = _validate_email_config(
+        send_email_enabled, email_subject_template, email_body_template, normalized_fields
+    )
 
     backup_path: Path | None = None
     # Simpan berkasnya sendiri, bukan sekadar penanda boolean: penyempitan tipe
@@ -461,6 +523,9 @@ def update_letter_type(
             letter_type.name = name
             letter_type.slug = new_slug
             letter_type.template_path = new_path.as_posix()
+            letter_type.send_email_enabled = email_enabled
+            letter_type.email_subject_template = email_subject
+            letter_type.email_body_template = email_body
             session.add(letter_type)
 
             _replace_fields(session, letter_type.id, normalized_fields)
@@ -653,6 +718,9 @@ def get_letter_type(
             "unit_slug": letter_type.unit.slug,
             "unit_name": letter_type.unit.name,
             "fields": fields,
+            "send_email_enabled": letter_type.send_email_enabled,
+            "email_subject_template": letter_type.email_subject_template,
+            "email_body_template": letter_type.email_body_template,
         }
 
 
