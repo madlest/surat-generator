@@ -79,6 +79,12 @@ SESSION_SECRET_KEY=ganti-dengan-hasil-openssl-rand-hex-32
 # Email yang otomatis jadi superadmin pada login pertamanya (dipisah koma).
 # Menyelesaikan masalah ayam-telur "siapa yang mengundang superadmin pertama".
 SUPERADMIN_EMAILS=nama@umbjm.ac.id
+
+# Kunci Fernet untuk mengenkripsi refresh token Gmail admin (fitur kirim surat
+# via email). Opsional — kosongkan kalau fitur email belum dipakai. Bikin:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# JANGAN diganti setelah ada admin yang menghubungkan Gmail.
+EMAIL_TOKEN_KEY=
 ```
 
 **OAuth Google:** buat OAuth Client (tipe *Web application*) di [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Daftarkan **Authorized redirect URI** sesuai tempat aplikasi berjalan:

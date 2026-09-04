@@ -31,8 +31,14 @@ class DynamicBatchGenerationError(Exception):
 
 def _format_custom_values(values: dict, fields: list[LetterField]) -> dict:
     field_types = {field.field_key: field.field_type for field in fields}
+    # Field manual (from_template=False) — mis. nomor WA / email tujuan — TIDAK
+    # ikut ke context docxtpl. Nilainya tetap dikumpulkan & divalidasi di
+    # dynamic_fields.py, cuma tidak dirender ke badan surat.
+    template_keys = {field.field_key for field in fields if field.from_template}
     formatted = {}
     for key, value in values.items():
+        if key not in template_keys:
+            continue
         if value is None:
             # Field opsional yang dikosongkan. Tanpa ini, Jinja merender None
             # jadi teks "None" di badan surat — jelek dan senyap.
@@ -71,7 +77,12 @@ def build_context(
 
 
 def _build_recipient_label(recipient_values: dict, recipient_fields: list[LetterField]) -> str:
-    ordered_fields = sorted(recipient_fields, key=lambda f: f.display_order)
+    # Hanya field template yang dipakai menyusun label/nama file — field manual
+    # (nomor WA / email) tidak identik dengan "nama penerima" dan bikin nama
+    # file jelek.
+    ordered_fields = sorted(
+        (f for f in recipient_fields if f.from_template), key=lambda f: f.display_order
+    )
     parts = [str(recipient_values[f.field_key]) for f in ordered_fields if recipient_values.get(f.field_key)]
     return " - ".join(parts)
 
@@ -85,6 +96,7 @@ def generate_batch(
     recipient_fields: list[LetterField],
     working_dir: str,
     progress_callback=None,
+    manifest_out: list | None = None,
 ) -> str:
     """
     Generate PDF untuk setiap recipient (cover letter + lampiran tergabung),
@@ -92,6 +104,10 @@ def generate_batch(
 
     base_info: {nomor_surat, tempat_surat, tanggal_surat (date), perihal_surat,
                 lampirans: [{"judul": str, "file_path": str}, ...]}
+
+    manifest_out: kalau diberikan (list), tiap recipient yang berhasil di-append
+    sebagai {index, label, pdf_path, recipient_values} — dipakai Stage B4 untuk
+    mengirim tiap PDF ke penerimanya via email tanpa generate ulang.
     """
     working_path = Path(working_dir)
     individual_dir = working_path / "individual"
@@ -131,6 +147,16 @@ def generate_batch(
 
             merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
             final_pdf_paths.append(final_pdf_path)
+
+            if manifest_out is not None:
+                manifest_out.append(
+                    {
+                        "index": index,
+                        "label": label,
+                        "pdf_path": final_pdf_path,
+                        "recipient_values": recipient_values,
+                    }
+                )
 
             # Dilaporkan setelah merge selesai, bukan sebelum, supaya angka
             # progress mencerminkan dokumen yang benar-benar sudah jadi.

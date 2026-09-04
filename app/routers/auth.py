@@ -4,8 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 
+from app.core.crypto import SecretCryptoError, decrypt_secret, encrypt_secret
 from app.core.database import get_session
-from app.core.oauth import OAuthError, build_authorize_url, exchange_code_for_id_token, verify_id_token
+from app.core.oauth import (
+    GMAIL_SEND_SCOPE,
+    OAuthError,
+    build_authorize_url,
+    build_gmail_authorize_url,
+    exchange_code_for_gmail_tokens,
+    exchange_code_for_id_token,
+    revoke_token,
+    verify_id_token,
+)
 from app.core.security import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
@@ -20,6 +30,7 @@ from app.core.config import settings
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 STATE_COOKIE_NAME = "oauth_state"
+GMAIL_STATE_COOKIE_NAME = "gmail_oauth_state"
 
 
 def _auth_error_redirect(code: str) -> RedirectResponse:
@@ -159,4 +170,107 @@ def me(user: User = Depends(get_current_user)):
         # Fakultas Farmasi" tanpa frontend perlu memanggil /admin/units
         # terpisah. Null untuk superadmin yang tidak terikat satu unit.
         "unit_name": user.unit.name if user.unit else None,
+        # v2.1: apakah admin ini sudah menghubungkan Gmail untuk kirim surat.
+        "gmail_connected": user.gmail_connected,
+        "gmail_connected_at": (
+            user.gmail_connected_at.isoformat() if user.gmail_connected_at else None
+        ),
     }
+
+
+# --- Alur "Hubungkan Gmail" (v2.1) -------------------------------------------
+# Terpisah dari login utama: hanya admin yang menekan tombolnya yang meminta
+# scope sensitif gmail.send. Refresh token yang didapat disimpan TERENKRIPSI
+# di User.gmail_refresh_token_enc.
+
+def _gmail_result_redirect(param: str, value: str) -> RedirectResponse:
+    response = RedirectResponse(f"/?{param}={value}", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie(GMAIL_STATE_COOKIE_NAME)
+    return response
+
+
+def _gmail_redirect_uri(request: Request) -> str:
+    return str(request.url_for("gmail_callback"))
+
+
+@router.get("/gmail/authorize")
+def gmail_authorize(request: Request, user: User = Depends(get_current_user)):
+    state = create_oauth_state()
+    authorize_url = build_gmail_authorize_url(_gmail_redirect_uri(request), state)
+
+    response = RedirectResponse(authorize_url)
+    response.set_cookie(
+        GMAIL_STATE_COOKIE_NAME,
+        state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+    )
+    return response
+
+
+@router.get("/gmail/callback", name="gmail_callback")
+async def gmail_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    if error:
+        return _gmail_result_redirect("gmail_error", "cancelled")
+
+    cookie_state = request.cookies.get(GMAIL_STATE_COOKIE_NAME)
+    if not state or not cookie_state or state != cookie_state or not verify_oauth_state(state):
+        return _gmail_result_redirect("gmail_error", "expired")
+    if not code:
+        return _gmail_result_redirect("gmail_error", "expired")
+
+    try:
+        tokens = await exchange_code_for_gmail_tokens(code, _gmail_redirect_uri(request))
+        claims = verify_id_token(tokens.id_token)
+    except OAuthError:
+        return _gmail_result_redirect("gmail_error", "oauth")
+
+    # Akun Google yang menyetujui harus sama dengan admin yang sedang login —
+    # cegah admin menautkan kotak surat orang lain ke akunnya.
+    if claims.get("email", "").lower() != user.email.lower():
+        return _gmail_result_redirect("gmail_error", "wrong_account")
+
+    # User bisa melepas centang izin "kirim email" di layar consent.
+    if GMAIL_SEND_SCOPE not in tokens.scope.split():
+        return _gmail_result_redirect("gmail_error", "scope_declined")
+
+    # Dengan access_type=offline + prompt=consent seharusnya selalu ada; kalau
+    # tidak, jangan diam-diam menyimpan koneksi yang tak bisa dipakai nanti.
+    if not tokens.refresh_token:
+        return _gmail_result_redirect("gmail_error", "no_refresh_token")
+
+    user.gmail_refresh_token_enc = encrypt_secret(tokens.refresh_token)
+    user.gmail_connected_at = datetime.now(timezone.utc)
+    session.add(user)
+    session.commit()
+
+    return _gmail_result_redirect("gmail", "connected")
+
+
+@router.post("/gmail/disconnect")
+async def gmail_disconnect(
+    session: Session = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    if user.gmail_refresh_token_enc:
+        try:
+            await revoke_token(decrypt_secret(user.gmail_refresh_token_enc))
+        except SecretCryptoError:
+            # Kunci enkripsi berganti — token lokal tak terbaca, tapi tetap
+            # kita hapus supaya barisnya bersih.
+            pass
+
+    user.gmail_refresh_token_enc = None
+    user.gmail_connected_at = None
+    session.add(user)
+    session.commit()
+    return {"gmail_connected": False}

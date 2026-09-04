@@ -19,6 +19,7 @@ import app.core.database as database_module
 
 # Impor eksplisit supaya semua tabel terdaftar di SQLModel.metadata sebelum
 # create_all dipanggil (letter_type mengimpor organization, bukan sebaliknya).
+import app.models.delivery  # noqa: F401
 import app.models.letter_type  # noqa: F401
 from app.core.security import SESSION_COOKIE_NAME, create_session_token
 from app.models.organization import User, UserRole
@@ -33,6 +34,18 @@ def engine():
     )
     SQLModel.metadata.create_all(eng)
     return eng
+
+
+@pytest.fixture(autouse=True)
+def _email_token_key(monkeypatch):
+    """Kunci Fernet sungguhan (acak per test) supaya app/core/crypto.py bisa
+    dipakai tanpa .env. Di-set di instance settings, bukan env var, karena
+    settings sudah ter-load saat test mulai."""
+    from cryptography.fernet import Fernet
+
+    from app.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "email_token_key", Fernet.generate_key().decode())
 
 
 @pytest.fixture(autouse=True)

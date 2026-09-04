@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Surat Generator</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap"
@@ -15,11 +16,46 @@
     <div class="page">
       <!-- ================= TOPBAR (tampil setelah login) ================= -->
       <header class="topbar" id="topbar" hidden>
-        <div class="topbar-identity">
-          <span class="topbar-name" id="topbar-name"></span>
-          <span class="topbar-meta" id="topbar-meta"></span>
+        <div class="topbar-brand">
+          <svg
+            class="topbar-mark"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M13.5 3.5H6.75A1.75 1.75 0 0 0 5 5.25v13.5A1.75 1.75 0 0 0 6.75 20.5h10.5A1.75 1.75 0 0 0 19 18.75V9z"
+            />
+            <path d="M13.5 3.5v3.75A1.75 1.75 0 0 0 15.25 9H19" />
+            <path d="M8.25 11.75h4.25" />
+            <path d="M8.25 14.75h7.5" />
+            <path d="M8.25 17.75h7.5" />
+          </svg>
+          <div class="topbar-identity">
+            <span class="topbar-name" id="topbar-name"></span>
+            <span class="topbar-meta" id="topbar-meta"></span>
+          </div>
         </div>
         <nav class="topbar-actions">
+          <span class="topbar-gmail" id="topbar-gmail" hidden>
+            <span class="gmail-dot" id="gmail-dot" aria-hidden="true"></span>
+            <span class="gmail-label" id="gmail-label"></span>
+            <button type="button" class="link-btn" id="gmail-connect-btn" hidden>
+              Hubungkan Gmail
+            </button>
+            <button
+              type="button"
+              class="link-btn"
+              id="gmail-disconnect-btn"
+              hidden
+            >
+              Putuskan
+            </button>
+          </span>
           <button
             type="button"
             class="link-btn"
@@ -34,10 +70,39 @@
         </nav>
       </header>
 
+      <div class="app-banner" id="app-banner" hidden>
+        <span id="app-banner-text"></span>
+        <button
+          type="button"
+          class="app-banner-close"
+          id="app-banner-close"
+          aria-label="Tutup"
+        >
+          &times;
+        </button>
+      </div>
+
       <!-- ================= LOGIN ================= -->
       <div class="view active" id="view-login">
         <div class="login-card">
-          <div class="login-monogram" aria-hidden="true">SG</div>
+          <div class="login-monogram" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M13.5 3.5H6.75A1.75 1.75 0 0 0 5 5.25v13.5A1.75 1.75 0 0 0 6.75 20.5h10.5A1.75 1.75 0 0 0 19 18.75V9z"
+              />
+              <path d="M13.5 3.5v3.75A1.75 1.75 0 0 0 15.25 9H19" />
+              <path d="M8.25 11.75h4.25" />
+              <path d="M8.25 14.75h7.5" />
+              <path d="M8.25 17.75h7.5" />
+            </svg>
+          </div>
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1 class="login-title">Surat Generator</h1>
           <p class="login-tagline">
@@ -247,8 +312,57 @@
           <button
             type="button"
             class="add-btn"
+            id="admin-add-manual-field-btn"
+            style="margin-top: 4px"
+          >
+            + Tambah field manual (tidak dari template)
+          </button>
+          <small class="field-hint" style="display: block; margin: 6px 2px 0">
+            Field yang tidak ada di template docx — mis. nomor WhatsApp atau
+            email tujuan pengiriman surat. Nilainya diisi di form/CSV tapi tidak
+            muncul di badan surat.
+          </small>
+
+          <div class="admin-email-config" id="admin-email-config">
+            <label class="admin-required-toggle">
+              <input type="checkbox" id="admin-send-email-enabled" />
+              Kirim surat ini ke penerima lewat email
+            </label>
+            <small class="field-hint" style="display: block; margin: 4px 2px 10px">
+              Perlu satu field bertipe <strong>Email</strong> di level
+              <strong>Per penerima</strong> sebagai alamat tujuan. Setelah
+              generate, akan muncul tombol "Kirim Email" (perlu Gmail Anda
+              terhubung).
+            </small>
+            <div id="admin-email-fields" hidden>
+              <div class="field">
+                <label for="admin-email-subject">Subjek Email</label>
+                <input
+                  type="text"
+                  id="admin-email-subject"
+                  placeholder="Contoh: Surat untuk {nama_dosen}"
+                />
+              </div>
+              <div class="field">
+                <label for="admin-email-body">Isi Email</label>
+                <textarea
+                  id="admin-email-body"
+                  rows="5"
+                  placeholder="Yth. {nama_dosen},&#10;&#10;Terlampir surat resmi dari Fakultas. Terima kasih."
+                ></textarea>
+              </div>
+              <small class="field-hint">
+                Pakai <code>{key_field}</code> untuk menyisipkan nilai penerima
+                (mis. <code>{nama_dosen}</code>). PDF surat otomatis dilampirkan.
+              </small>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="add-btn"
             id="admin-submit-btn"
-            style="margin-top: 6px"
+            style="margin-top: 18px"
           >
             <span id="admin-submit-label">Simpan Jenis Surat</span>
           </button>

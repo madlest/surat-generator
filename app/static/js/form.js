@@ -3,11 +3,14 @@
 
 import {
   dateFieldMarkup,
+  fieldPlaceholder,
+  htmlInputType,
   renumberSteps,
   setText,
   setupDateField,
 } from "./helpers.js";
 import { showView } from "./views.js";
+import { getCurrentUser } from "./auth.js";
 
 const formArea = document.getElementById("form-area");
 const formTypeTag = document.getElementById("form-type-tag");
@@ -46,11 +49,16 @@ function batchFieldMarkup(field) {
   if (field.field_type === "date") {
     return dateFieldMarkup(id, field.label, field.required);
   }
-  const inputType = field.field_type === "number" ? "number" : "text";
+  const inputType = htmlInputType(field.field_type);
+  const placeholder = fieldPlaceholder(field.field_type, field.label).replace(
+    /"/g,
+    "&quot;",
+  );
   return `
     <div class="field">
       <span class="field-label-text" data-label-for="${id}"></span>
-      <input type="${inputType}" id="${id}" ${field.required ? "required" : ""}>
+      <input type="${inputType}" id="${id}" ${field.required ? "required" : ""}
+        ${placeholder ? `placeholder="${placeholder}"` : ""}>
     </div>
   `;
 }
@@ -139,6 +147,7 @@ function renderDynamicForm(letterType) {
           <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
           <div class="progress-label" id="progress-label"></div>
         </div>
+        <div class="send-email-area" id="send-email-area" hidden></div>
       </section>
     </form>
   `;
@@ -320,12 +329,12 @@ function setupRecipientSection(recipientFields) {
         label.setAttribute("for", inputId);
         label.textContent = field.label;
         const input = document.createElement("input");
-        input.type = field.field_type === "number" ? "number" : "text";
+        input.type = htmlInputType(field.field_type);
         input.id = inputId;
         input.dataset.fieldKey = field.field_key;
         input.dataset.required = String(!!field.required);
         input.required = !!field.required;
-        input.placeholder = `Isikan ${field.label.toLowerCase()}`;
+        input.placeholder = fieldPlaceholder(field.field_type, field.label);
         wrapper.append(label, input);
         row.appendChild(wrapper);
       }
@@ -373,6 +382,15 @@ function setupRecipientSection(recipientFields) {
     dateNote.textContent =
       "Untuk kolom bertipe tanggal, isi dengan format DD-MM-YYYY (mis. 22-08-2026).";
     modeCsv.querySelector(".csv-hint").after(dateNote);
+  }
+  if (recipientFields.some((f) => f.field_type === "phone")) {
+    const phoneNote = document.createElement("small");
+    phoneNote.className = "field-hint";
+    phoneNote.style.display = "block";
+    phoneNote.style.marginTop = "4px";
+    phoneNote.textContent =
+      "Untuk kolom nomor telepon: kalau dibuka di Excel/Spreadsheet, set format kolomnya jadi Teks supaya angka 0 di depan tidak hilang. Tanpa 0 pun tetap terbaca (mis. 81234567890 = 081234567890).";
+    modeCsv.querySelector(".csv-hint").after(phoneNote);
   }
 
   modeButtons.forEach((btn) => {
@@ -493,6 +511,172 @@ function collectFormData(batchFields, recipientFields) {
   return { formData };
 }
 
+// --- Kirim Email pasca-generate (Stage B5) --------------------------------
+
+const SEND_STATUS_ICON = { sent: "✓", failed: "✕", auth_expired: "✕", pending: "…" };
+const SEND_STATUS_LABEL = {
+  sent: "Terkirim",
+  pending: "Menunggu…",
+  failed: "Gagal",
+  auth_expired: "Izin Gmail kedaluwarsa",
+};
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+  );
+}
+
+function renderSendEmailArea(jobId, canSend) {
+  const area = document.getElementById("send-email-area");
+  if (!area) return;
+  if (!canSend) {
+    area.hidden = true;
+    return;
+  }
+  area.hidden = false;
+  area.innerHTML = `
+    <div class="send-email-card">
+      <div>
+        <strong>Kirim surat ke email penerima</strong>
+        <p class="send-email-hint">
+          Tiap penerima menerima PDF-nya sendiri dari alamat Gmail Anda.
+          Langkah ini tidak bisa dibatalkan.
+        </p>
+      </div>
+      <button type="button" class="submit" id="send-email-btn">Kirim Email</button>
+    </div>
+    <div class="status" id="send-email-status" role="status" aria-live="polite"></div>
+    <div class="send-email-list" id="send-email-list"></div>
+  `;
+  document
+    .getElementById("send-email-btn")
+    .addEventListener("click", () => startSendEmail(jobId));
+}
+
+function setSendStatus(type, message) {
+  const el = document.getElementById("send-email-status");
+  if (!el) return;
+  el.className = "status show " + type;
+  el.textContent = message;
+}
+
+async function startSendEmail(jobId) {
+  const btn = document.getElementById("send-email-btn");
+
+  const user = getCurrentUser();
+  if (user && !user.gmail_connected) {
+    setSendStatus(
+      "error",
+      'Hubungkan akun Gmail Anda dulu — tombol "Hubungkan Gmail" di kanan atas.',
+    );
+    return;
+  }
+
+  btn.disabled = true;
+  setSendStatus("loading", "Menyiapkan pengiriman…");
+  try {
+    const res = await fetch(`/generate/jobs/${jobId}/send-email`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setSendStatus(
+        "error",
+        typeof data.detail === "string" ? data.detail : "Gagal memulai pengiriman.",
+      );
+      btn.disabled = false;
+      return;
+    }
+    setSendStatus("loading", `Mengirim ke ${data.total_email} alamat email…`);
+    pollSendBatch(data.send_batch_id, btn);
+  } catch (err) {
+    setSendStatus("error", "Tidak dapat terhubung ke server: " + err.message);
+    btn.disabled = false;
+  }
+}
+
+function pollSendBatch(batchId, triggerBtn) {
+  const listEl = document.getElementById("send-email-list");
+
+  const iv = setInterval(async () => {
+    let st;
+    try {
+      const r = await fetch(`/generate/send-batches/${batchId}/status`);
+      if (!r.ok) {
+        clearInterval(iv);
+        setSendStatus("error", "Gagal memeriksa status pengiriman.");
+        return;
+      }
+      st = await r.json();
+    } catch (e) {
+      clearInterval(iv);
+      setSendStatus("error", "Koneksi terputus: " + e.message);
+      return;
+    }
+
+    listEl.innerHTML = st.deliveries
+      .map(
+        (d) => `
+      <div class="send-email-row send-email-${d.status}">
+        <span class="send-email-icon">${SEND_STATUS_ICON[d.status] || ""}</span>
+        <span class="send-email-to">${escapeHtml(d.nama)} &lt;${escapeHtml(d.kontak)}&gt;</span>
+        <span class="send-email-detail">${escapeHtml(d.error || SEND_STATUS_LABEL[d.status] || d.status)}</span>
+      </div>`,
+      )
+      .join("");
+
+    if (!st.selesai) {
+      setSendStatus("loading", `${st.sent}/${st.total} email terkirim…`);
+      return;
+    }
+
+    clearInterval(iv);
+    const gagal = st.failed + st.auth_expired;
+    if (gagal === 0) {
+      setSendStatus("success", `Semua ${st.sent} email terkirim.`);
+      if (triggerBtn) triggerBtn.hidden = true;
+    } else {
+      const authMsg =
+        st.auth_expired > 0
+          ? " Sebagian gagal karena izin Gmail — hubungkan ulang lalu coba lagi."
+          : "";
+      setSendStatus("error", `${st.sent} terkirim, ${gagal} gagal.` + authMsg);
+      renderRetryButton(batchId);
+    }
+  }, 1500);
+}
+
+function renderRetryButton(batchId) {
+  const listEl = document.getElementById("send-email-list");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "preview-btn";
+  btn.style.marginTop = "10px";
+  btn.textContent = "Kirim Ulang yang Gagal";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      const r = await fetch(`/generate/send-batches/${batchId}/retry`, { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) {
+        setSendStatus(
+          "error",
+          typeof data.detail === "string" ? data.detail : "Gagal mengirim ulang.",
+        );
+        btn.disabled = false;
+        return;
+      }
+      btn.remove();
+      setSendStatus("loading", "Mengirim ulang…");
+      pollSendBatch(batchId, null);
+    } catch (e) {
+      setSendStatus("error", "Koneksi terputus: " + e.message);
+      btn.disabled = false;
+    }
+  });
+  listEl.appendChild(btn);
+}
+
 function updateStampState() {
   const form = document.getElementById("surat-form");
   const stampEl = document.getElementById("stamp");
@@ -533,6 +717,11 @@ function setupSubmitHandler(batchFields, recipientFields) {
     progressWrap.classList.remove("show");
     progressFill.style.width = "0%";
     progressLabel.textContent = "";
+    const sendArea = document.getElementById("send-email-area");
+    if (sendArea) {
+      sendArea.hidden = true;
+      sendArea.innerHTML = "";
+    }
 
     const { formData, error } = collectFormData(batchFields, recipientFields);
     if (error) {
@@ -614,6 +803,7 @@ function setupSubmitHandler(batchFields, recipientFields) {
               "Dokumen berhasil dibuat dan diunduh.",
             );
             submitBtn.disabled = false;
+            renderSendEmailArea(job_id, jobStatus.can_send_email);
           } else if (jobStatus.status === "error") {
             clearInterval(pollInterval);
             setStatus(
