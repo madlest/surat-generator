@@ -188,7 +188,7 @@ def _mk_rows(session, n, job_id="job1"):
 def test_run_batch_status_campuran(session, engine, monkeypatch, pdfs):
     rows = _mk_rows(session, 3)
 
-    def fake_send(*, refresh_token, sender, to, subject, body_text, attachments):
+    def fake_send(*, refresh_token, sender, to, subject, body_text, attachments, body_html=None):
         if to == "orang0@x.com":
             return "msg-ok"
         if to == "orang1@x.com":

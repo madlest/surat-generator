@@ -103,7 +103,7 @@ def test_send_letter_type_tanpa_email_config(client, login, admin_gmail, unit, t
 def test_send_sukses_dedupe_dan_status(client, login, admin_gmail, done_job, session, monkeypatch):
     sent = []
 
-    def fake_send(*, refresh_token, sender, to, subject, body_text, attachments):
+    def fake_send(*, refresh_token, sender, to, subject, body_text, attachments, body_html=None):
         sent.append({"to": to, "subject": subject, "n_attach": len(attachments), "sender": sender})
         return f"msg-{to}"
 
@@ -137,7 +137,7 @@ def test_send_sukses_dedupe_dan_status(client, login, admin_gmail, done_job, ses
 def test_retry_hanya_yang_gagal(client, login, admin_gmail, done_job, session, monkeypatch):
     calls = {"n": 0}
 
-    def flaky(*, refresh_token, sender, to, subject, body_text, attachments):
+    def flaky(*, refresh_token, sender, to, subject, body_text, attachments, body_html=None):
         calls["n"] += 1
         if to == "sri@x.com" and calls["n"] <= 2:
             from app.services.email_sender import EmailSenderError

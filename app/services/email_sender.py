@@ -89,15 +89,21 @@ def build_raw_message(
     subject: str,
     body_text: str,
     attachments: list[tuple[str, bytes]],
+    body_html: str | None = None,
 ) -> str:
     """Rakit MIME lalu encode base64url sesuai format `raw` Gmail API. Dipisah
     supaya bisa diuji tanpa jaringan. Melempar EmailTooLarge kalau hasilnya
-    melebihi MAX_MESSAGE_BYTES."""
+    melebihi MAX_MESSAGE_BYTES.
+
+    Kalau `body_html` diisi, pesan jadi multipart/alternative: klien email yang
+    mendukung menampilkan HTML, sisanya jatuh ke `body_text`."""
     msg = EmailMessage()
     msg["From"] = sender
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body_text)
+    if body_html:
+        msg.add_alternative(body_html, subtype="html")
 
     for filename, content in attachments:
         msg.add_attachment(content, maintype="application", subtype="pdf", filename=filename)
@@ -119,6 +125,7 @@ def send_email(
     to: str,
     subject: str,
     body_text: str,
+    body_html: str | None = None,
     attachments: list[tuple[str, bytes]] | None = None,
 ) -> str:
     """Kirim satu email lewat akun Gmail pemilik `refresh_token`. Mengembalikan
@@ -128,7 +135,7 @@ def send_email(
     - EmailTooLarge     → lampiran kegedean (jangan di-retry)
     - EmailSenderError  → kegagalan lain (boleh di-retry)
     """
-    raw = build_raw_message(sender, to, subject, body_text, attachments or [])
+    raw = build_raw_message(sender, to, subject, body_text, attachments or [], body_html)
     access_token = _access_token_from_refresh(refresh_token)
 
     try:
