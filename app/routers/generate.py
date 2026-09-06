@@ -18,14 +18,16 @@ from app.core.crypto import SecretCryptoError, decrypt_secret
 from app.core.database import engine
 from app.core.job_store import job_store
 from app.dependencies import get_current_user, scope_unit_id
-from app.models.delivery import Delivery, DeliveryStatus
+from app.models.delivery import Delivery, DeliveryChannel, DeliveryStatus
 from app.models.letter_type import FieldType, LetterField
 from app.models.organization import User
 from app.services.delivery import (
     create_delivery_rows,
     deliveries_for_batch,
     plan_email_deliveries,
+    plan_whatsapp_deliveries,
     run_email_send_batch,
+    set_delivery_sent,
 )
 from app.services.document_generator import DocumentGenerationError
 from app.services.dynamic_batch_generator import (
@@ -165,21 +167,11 @@ def _run_batch_job(
             manifest_out=manifest,
         )
         job_store.mark_done(job_id, zip_path)
-        # Konteks kirim disimpan APA ADANYA (termasuk saat send_email_enabled
-        # False) — endpoint kirim yang memutuskan boleh/tidaknya. Ini juga yang
-        # dipakai retry untuk mengambil ulang path PDF selama job belum tersapu.
-        job_store.attach_send_context(
-            job_id,
-            {
-                "letter_type_id": send_meta["letter_type_id"],
-                "unit_id": send_meta["unit_id"],
-                "send_email_enabled": send_meta["send_email_enabled"],
-                "email_subject_template": send_meta["email_subject_template"],
-                "email_body_template": send_meta["email_body_template"],
-                "email_field_key": send_meta["email_field_key"],
-                "recipients": manifest,
-            },
-        )
+        # Konteks kirim disimpan APA ADANYA (termasuk saat kedua kanal mati) —
+        # endpoint kirim yang memutuskan boleh/tidaknya. Juga dipakai retry
+        # email & "Siapkan WhatsApp" untuk mengambil ulang data penerima + path
+        # PDF selama job belum tersapu (TTL 1 jam).
+        job_store.attach_send_context(job_id, {**send_meta, "recipients": manifest})
     except (DocumentGenerationError, PdfMergeError, DynamicBatchGenerationError) as e:
         job_store.mark_error(job_id, str(e))
         shutil.rmtree(working_dir, ignore_errors=True)
@@ -344,6 +336,9 @@ def start_generate_job(
     email_field_key = next(
         (f.field_key for f in recipient_fields if f.field_type == FieldType.email), None
     )
+    phone_field_key = next(
+        (f.field_key for f in recipient_fields if f.field_type == FieldType.phone), None
+    )
     send_meta = {
         "letter_type_id": letter_type.id,
         "unit_id": letter_type.unit_id,
@@ -351,6 +346,9 @@ def start_generate_job(
         "email_subject_template": letter_type.email_subject_template,
         "email_body_template": letter_type.email_body_template,
         "email_field_key": email_field_key,
+        "send_whatsapp_enabled": letter_type.send_whatsapp_enabled,
+        "whatsapp_message_template": letter_type.whatsapp_message_template,
+        "phone_field_key": phone_field_key,
     }
 
     background_tasks.add_task(
@@ -457,11 +455,13 @@ def _public_job_view(job: dict) -> dict:
     penerima mentah + path server) dan ganti dengan flag ringkas apakah job ini
     bisa dikirim via email."""
     ctx = job.get("send_context") or {}
+    done = job.get("status") == "done"
     view = {k: v for k, v in job.items() if k != "send_context"}
     view["can_send_email"] = bool(
-        job.get("status") == "done"
-        and ctx.get("send_email_enabled")
-        and ctx.get("email_field_key")
+        done and ctx.get("send_email_enabled") and ctx.get("email_field_key")
+    )
+    view["can_send_whatsapp"] = bool(
+        done and ctx.get("send_whatsapp_enabled") and ctx.get("phone_field_key")
     )
     return view
 
@@ -552,6 +552,7 @@ def send_job_via_email(
         rows = create_delivery_rows(
             session,
             planned=planned,
+            channel=DeliveryChannel.email,
             letter_type_id=ctx["letter_type_id"],
             unit_id=ctx["unit_id"],
             send_batch_id=send_batch_id,
@@ -698,3 +699,84 @@ def retry_send_batch(
         sender=current_user.email,
     )
     return {"retrying": len(payloads)}
+
+
+# --- Notifikasi WhatsApp (Stage C) ----------------------------------------
+# Server tidak mengirim apa pun: cuma menyiapkan link wa.me terisi + melacak
+# lewat Delivery. Admin yang menekan kirim di WhatsApp-nya sendiri lalu
+# menandai "terkirim" (checklist).
+
+@router.post("/jobs/{job_id}/whatsapp")
+def prepare_job_whatsapp(job_id: str, current_user: User = Depends(get_current_user)):
+    job = job_store.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job tidak ditemukan.")
+    _check_job_unit_access(job, current_user)
+    if job["status"] != "done":
+        raise HTTPException(status_code=409, detail="Dokumen belum selesai diproses.")
+
+    ctx = job.get("send_context") or {}
+    if not ctx.get("send_whatsapp_enabled") or not ctx.get("phone_field_key"):
+        raise HTTPException(
+            status_code=400,
+            detail="Jenis surat ini tidak dikonfigurasi untuk notifikasi WhatsApp.",
+        )
+
+    planned = plan_whatsapp_deliveries(
+        ctx["recipients"],
+        ctx["phone_field_key"],
+        ctx.get("whatsapp_message_template") or "",
+    )
+    if not planned:
+        raise HTTPException(
+            status_code=422,
+            detail="Tidak ada penerima yang punya nomor WhatsApp.",
+        )
+
+    send_batch_id = uuid.uuid4().hex
+    with Session(engine) as session:
+        rows = create_delivery_rows(
+            session,
+            planned=planned,
+            channel=DeliveryChannel.whatsapp,
+            letter_type_id=ctx["letter_type_id"],
+            unit_id=ctx["unit_id"],
+            send_batch_id=send_batch_id,
+            job_id=job_id,
+            triggered_by_user_id=current_user.id,
+        )
+        deliveries = [
+            {
+                "id": row.id,
+                "nama": row.recipient_label,
+                "kontak": row.recipient_contact,
+                "wa_url": plan["wa_url"],
+                "status": row.status.value,
+            }
+            for row, plan in zip(rows, planned)
+        ]
+
+    return {
+        "send_batch_id": send_batch_id,
+        "total_wa": len(planned),
+        "total_penerima": len(ctx["recipients"]),
+        "deliveries": deliveries,
+    }
+
+
+@router.post("/deliveries/{delivery_id}/mark")
+def mark_delivery(
+    delivery_id: int,
+    sent: bool = Form(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Tandai / lepas-tandai satu Delivery sebagai terkirim (checklist WA)."""
+    with Session(engine) as session:
+        row = session.get(Delivery, delivery_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Pengiriman tidak ditemukan.")
+        unit_filter = scope_unit_id(current_user)
+        if unit_filter is not None and row.unit_id != unit_filter:
+            raise HTTPException(status_code=404, detail="Pengiriman tidak ditemukan.")
+        row = set_delivery_sent(session, row, sent)
+        return {"id": row.id, "status": row.status.value}

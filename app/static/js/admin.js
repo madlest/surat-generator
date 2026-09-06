@@ -59,6 +59,9 @@ function resetAdminWizard() {
   document.getElementById("admin-email-subject").value = "";
   document.getElementById("admin-email-body").value = "";
   document.getElementById("admin-email-fields").hidden = true;
+  document.getElementById("admin-send-whatsapp-enabled").checked = false;
+  document.getElementById("admin-wa-message").value = "";
+  document.getElementById("admin-wa-fields").hidden = true;
   document.getElementById("admin-no-vars-note").style.display = "none";
   document.getElementById("admin-step-2").style.display = "none";
   document.getElementById("admin-inspect-status").className = "status";
@@ -189,6 +192,12 @@ export async function openEditWizard(unitSlug, slug) {
     document.getElementById("admin-email-body").value =
       letterType.email_body_template || "";
     document.getElementById("admin-email-fields").hidden = !sendEmail;
+
+    const sendWa = !!letterType.send_whatsapp_enabled;
+    document.getElementById("admin-send-whatsapp-enabled").checked = sendWa;
+    document.getElementById("admin-wa-message").value =
+      letterType.whatsapp_message_template || "";
+    document.getElementById("admin-wa-fields").hidden = !sendWa;
 
     document.getElementById("admin-step-2").style.display = "block";
     statusEl.className = "status";
@@ -578,9 +587,14 @@ document
   .addEventListener("change", (e) => {
     document.getElementById("admin-email-fields").hidden = !e.target.checked;
   });
+document
+  .getElementById("admin-send-whatsapp-enabled")
+  .addEventListener("change", (e) => {
+    document.getElementById("admin-wa-fields").hidden = !e.target.checked;
+  });
 
-// Cek ringan sebelum submit: kirim email butuh tepat satu field email di level
-// penerima (server tetap menegakkan ini, ini cuma pesan lebih cepat & jelas).
+// Cek ringan sebelum submit (server tetap menegakkan; ini cuma pesan lebih
+// cepat & jelas): kanal kirim butuh tepat satu field tujuan di level penerima.
 function emailConfigError(fieldsConfig) {
   if (!document.getElementById("admin-send-email-enabled").checked) return null;
   const emailRecipientFields = fieldsConfig.filter(
@@ -594,6 +608,20 @@ function emailConfigError(fieldsConfig) {
     !document.getElementById("admin-email-body").value.trim()
   ) {
     return "Subjek dan isi email wajib diisi kalau kirim email diaktifkan.";
+  }
+  return null;
+}
+
+function whatsappConfigError(fieldsConfig) {
+  if (!document.getElementById("admin-send-whatsapp-enabled").checked) return null;
+  const phoneRecipientFields = fieldsConfig.filter(
+    (f) => f.field_type === "phone" && f.level === "recipient",
+  );
+  if (phoneRecipientFields.length !== 1) {
+    return `Notifikasi WhatsApp butuh tepat satu field bertipe Telepon/WA di level "Per penerima" sebagai nomor tujuan. Sekarang ada ${phoneRecipientFields.length}.`;
+  }
+  if (!document.getElementById("admin-wa-message").value.trim()) {
+    return "Isi pesan WhatsApp wajib diisi kalau notifikasi WA diaktifkan.";
   }
   return null;
 }
@@ -644,10 +672,10 @@ document
 
     const fieldsConfig = bacaFieldsDariForm();
 
-    const emailErr = emailConfigError(fieldsConfig);
-    if (emailErr) {
+    const kirimErr = emailConfigError(fieldsConfig) || whatsappConfigError(fieldsConfig);
+    if (kirimErr) {
       statusEl.className = "status show error";
-      statusEl.textContent = emailErr;
+      statusEl.textContent = kirimErr;
       return;
     }
 
@@ -673,6 +701,16 @@ document
       formData.append(
         "email_body_template",
         document.getElementById("admin-email-body").value.trim(),
+      );
+      formData.append(
+        "send_whatsapp_enabled",
+        document.getElementById("admin-send-whatsapp-enabled").checked
+          ? "true"
+          : "false",
+      );
+      formData.append(
+        "whatsapp_message_template",
+        document.getElementById("admin-wa-message").value.trim(),
       );
       if (selectedTemplateFile) {
         formData.append("template_file", selectedTemplateFile);

@@ -4,11 +4,12 @@ import json
 import pytest
 from sqlmodel import select
 
-from app.models.delivery import Delivery, DeliveryStatus
+from app.models.delivery import Delivery, DeliveryChannel, DeliveryStatus
 from app.services import delivery as delivery_mod
 from app.services.delivery import (
     create_delivery_rows,
     plan_email_deliveries,
+    plan_whatsapp_deliveries,
     render_template,
     run_email_send_batch,
 )
@@ -90,6 +91,40 @@ def test_plan_satu_surat_tanpa_catatan():
     assert plans[0]["body"] == "Halo."
 
 
+# --- plan_whatsapp_deliveries --------------------------------------------
+
+def test_wa_plan_bangun_url_dan_render():
+    m = [
+        {"index": 1, "label": "Budi", "pdf_path": "/tmp/a.pdf",
+         "recipient_values": {"wa": "+6281234567890"},
+         "render_values": {"nama": "Budi"}},
+    ]
+    plans = plan_whatsapp_deliveries(m, "wa", "Halo {nama}, surat Anda siap.")
+    assert plans[0]["contact"] == "+6281234567890"
+    assert plans[0]["subject"] is None
+    assert plans[0]["body"] == "Halo Budi, surat Anda siap."
+    assert plans[0]["wa_url"].startswith("https://wa.me/6281234567890?text=")
+    assert "Halo%20Budi" in plans[0]["wa_url"]
+
+
+def test_wa_plan_dedupe_per_nomor_dengan_catatan():
+    m = [
+        {"index": 1, "label": "Dr. Budi", "pdf_path": "/tmp/a.pdf",
+         "recipient_values": {"wa": "+628111"}, "render_values": {"nama": "Dr. Budi"}},
+        {"index": 2, "label": "Dr. Budi", "pdf_path": "/tmp/b.pdf",
+         "recipient_values": {"wa": "+628111"}, "render_values": {"nama": "Dr. Budi"}},
+    ]
+    plans = plan_whatsapp_deliveries(m, "wa", "Halo {nama}.")
+    assert len(plans) == 1
+    assert plans[0]["body"] == "Halo Dr. Budi.\n\n(Ada 2 surat untuk Anda.)"
+
+
+def test_wa_plan_lewati_tanpa_nomor():
+    m = [{"index": 1, "label": "X", "pdf_path": "/tmp/a.pdf",
+          "recipient_values": {"wa": ""}, "render_values": {}}]
+    assert plan_whatsapp_deliveries(m, "wa", "hai") == []
+
+
 def test_plan_lewati_tanpa_email():
     m = _manifest(("Budi", "/tmp/a.pdf", {"email": "", "nama": "Budi"}))
     assert plan_email_deliveries(m, "email", "S", "B") == []
@@ -141,6 +176,7 @@ def _mk_rows(session, n, job_id="job1"):
     return create_delivery_rows(
         session,
         planned=planned,
+        channel=DeliveryChannel.email,
         letter_type_id=1,
         unit_id=1,
         send_batch_id="batch1",

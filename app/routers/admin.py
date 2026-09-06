@@ -262,6 +262,41 @@ def _validate_email_config(
     return True, subject, body
 
 
+def _validate_whatsapp_config(
+    raw_enabled: str,
+    raw_message: str,
+    normalized_fields: list[dict],
+) -> tuple[bool, str | None]:
+    """Sejalan dengan _validate_email_config: kalau notifikasi WA diaktifkan,
+    wajib TEPAT SATU field `phone` di level `recipient` (nomor tujuan) dan
+    pesan tidak boleh kosong."""
+    enabled = str(raw_enabled).strip().lower() in _TRUE_STRINGS
+    message = (raw_message or "").strip() or None
+
+    if not enabled:
+        return False, message
+
+    phone_recipient_fields = [
+        f
+        for f in normalized_fields
+        if f["field_type"] == FieldType.phone.value and f["level"] == FieldLevel.recipient.value
+    ]
+    if len(phone_recipient_fields) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Notifikasi WhatsApp perlu tepat satu field bertipe Telepon/WA di "
+                f"level penerima sebagai nomor tujuan. Sekarang ada {len(phone_recipient_fields)}."
+            ),
+        )
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="Isi pesan WhatsApp wajib diisi kalau notifikasi WA diaktifkan.",
+        )
+    return True, message
+
+
 def _save_template(template_file: UploadFile, dest_path: Path) -> None:
     """
     Simpan template docx ke lokasi tujuan, lalu pastikan isinya benar-benar
@@ -330,6 +365,8 @@ def create_letter_type(
     send_email_enabled: str = Form(default="false"),
     email_subject_template: str = Form(default=""),
     email_body_template: str = Form(default=""),
+    send_whatsapp_enabled: str = Form(default="false"),
+    whatsapp_message_template: str = Form(default=""),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -344,6 +381,9 @@ def create_letter_type(
     normalized_fields = _normalize_fields_config(fields_config)
     email_enabled, email_subject, email_body = _validate_email_config(
         send_email_enabled, email_subject_template, email_body_template, normalized_fields
+    )
+    wa_enabled, wa_message = _validate_whatsapp_config(
+        send_whatsapp_enabled, whatsapp_message_template, normalized_fields
     )
 
     with Session(engine) as session:
@@ -388,6 +428,8 @@ def create_letter_type(
                 send_email_enabled=email_enabled,
                 email_subject_template=email_subject,
                 email_body_template=email_body,
+                send_whatsapp_enabled=wa_enabled,
+                whatsapp_message_template=wa_message,
             )
             session.add(letter_type)
             session.commit()
@@ -422,6 +464,8 @@ def update_letter_type(
     send_email_enabled: str = Form(default="false"),
     email_subject_template: str = Form(default=""),
     email_body_template: str = Form(default=""),
+    send_whatsapp_enabled: str = Form(default="false"),
+    whatsapp_message_template: str = Form(default=""),
     unit_slug: str | None = None,
     current_user: User = Depends(get_current_user),
 ):
@@ -448,6 +492,9 @@ def update_letter_type(
     normalized_fields = _normalize_fields_config(fields_config)
     email_enabled, email_subject, email_body = _validate_email_config(
         send_email_enabled, email_subject_template, email_body_template, normalized_fields
+    )
+    wa_enabled, wa_message = _validate_whatsapp_config(
+        send_whatsapp_enabled, whatsapp_message_template, normalized_fields
     )
 
     backup_path: Path | None = None
@@ -526,6 +573,8 @@ def update_letter_type(
             letter_type.send_email_enabled = email_enabled
             letter_type.email_subject_template = email_subject
             letter_type.email_body_template = email_body
+            letter_type.send_whatsapp_enabled = wa_enabled
+            letter_type.whatsapp_message_template = wa_message
             session.add(letter_type)
 
             _replace_fields(session, letter_type.id, normalized_fields)
@@ -721,6 +770,8 @@ def get_letter_type(
             "send_email_enabled": letter_type.send_email_enabled,
             "email_subject_template": letter_type.email_subject_template,
             "email_body_template": letter_type.email_body_template,
+            "send_whatsapp_enabled": letter_type.send_whatsapp_enabled,
+            "whatsapp_message_template": letter_type.whatsapp_message_template,
         }
 
 

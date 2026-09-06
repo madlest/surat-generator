@@ -148,6 +148,7 @@ function renderDynamicForm(letterType) {
           <div class="progress-label" id="progress-label"></div>
         </div>
         <div class="send-email-area" id="send-email-area" hidden></div>
+        <div class="send-email-area" id="send-wa-area" hidden></div>
       </section>
     </form>
   `;
@@ -677,6 +678,127 @@ function renderRetryButton(batchId) {
   listEl.appendChild(btn);
 }
 
+// --- Kirim WhatsApp pasca-generate (Stage C) ---------------------------
+// Server cuma menyiapkan link wa.me + baris Delivery. Admin buka chat,
+// tekan kirim di WhatsApp-nya sendiri, lalu centang "terkirim".
+
+function renderSendWaArea(jobId, canSend) {
+  const area = document.getElementById("send-wa-area");
+  if (!area) return;
+  if (!canSend) {
+    area.hidden = true;
+    return;
+  }
+  area.hidden = false;
+  area.innerHTML = `
+    <div class="send-email-card">
+      <div>
+        <strong>Kirim notifikasi WhatsApp</strong>
+        <p class="send-email-hint">
+          Buka chat tiap penerima (pesan sudah terisi), tekan kirim di WhatsApp
+          Anda, lalu centang. PDF tetap lewat email.
+        </p>
+      </div>
+      <button type="button" class="submit" id="send-wa-btn">Siapkan WhatsApp</button>
+    </div>
+    <div class="status" id="send-wa-status" role="status" aria-live="polite"></div>
+    <div class="send-email-list" id="send-wa-list"></div>
+  `;
+  document
+    .getElementById("send-wa-btn")
+    .addEventListener("click", () => startWhatsapp(jobId));
+}
+
+function setWaStatus(type, message) {
+  const el = document.getElementById("send-wa-status");
+  if (!el) return;
+  el.className = "status show " + type;
+  el.textContent = message;
+}
+
+async function startWhatsapp(jobId) {
+  const btn = document.getElementById("send-wa-btn");
+  btn.disabled = true;
+  setWaStatus("loading", "Menyiapkan daftar…");
+  try {
+    const res = await fetch(`/generate/jobs/${jobId}/whatsapp`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) {
+      setWaStatus(
+        "error",
+        typeof data.detail === "string" ? data.detail : "Gagal menyiapkan WhatsApp.",
+      );
+      btn.disabled = false;
+      return;
+    }
+    btn.hidden = true;
+    renderWaList(data.send_batch_id, data.deliveries);
+  } catch (err) {
+    setWaStatus("error", "Tidak dapat terhubung ke server: " + err.message);
+    btn.disabled = false;
+  }
+}
+
+function renderWaList(batchId, deliveries) {
+  const listEl = document.getElementById("send-wa-list");
+  listEl.innerHTML = "";
+
+  const updateCount = () => {
+    const done = listEl.querySelectorAll(".send-wa-row.done").length;
+    setWaStatus(
+      done === deliveries.length ? "success" : "loading",
+      `${done}/${deliveries.length} ditandai terkirim`,
+    );
+  };
+
+  deliveries.forEach((d) => {
+    const row = document.createElement("div");
+    row.className = "send-email-row send-wa-row" + (d.status === "sent" ? " done" : "");
+
+    const who = document.createElement("span");
+    who.className = "send-email-to";
+    who.textContent = `${d.nama} · ${d.kontak}`;
+
+    const open = document.createElement("a");
+    open.className = "send-wa-open";
+    open.href = d.wa_url;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.textContent = "Buka WhatsApp ↗";
+
+    const mark = document.createElement("label");
+    mark.className = "send-wa-mark";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = d.status === "sent";
+    cb.addEventListener("change", async () => {
+      cb.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append("sent", cb.checked ? "true" : "false");
+        const r = await fetch(`/generate/deliveries/${d.id}/mark`, {
+          method: "POST",
+          body: fd,
+        });
+        if (!r.ok) throw new Error();
+        row.classList.toggle("done", cb.checked);
+        updateCount();
+      } catch {
+        cb.checked = !cb.checked;
+        setWaStatus("error", "Gagal menyimpan tanda. Coba lagi.");
+      } finally {
+        cb.disabled = false;
+      }
+    });
+    mark.append(cb, document.createTextNode("terkirim"));
+
+    row.append(who, open, mark);
+    listEl.appendChild(row);
+  });
+
+  updateCount();
+}
+
 function updateStampState() {
   const form = document.getElementById("surat-form");
   const stampEl = document.getElementById("stamp");
@@ -717,11 +839,13 @@ function setupSubmitHandler(batchFields, recipientFields) {
     progressWrap.classList.remove("show");
     progressFill.style.width = "0%";
     progressLabel.textContent = "";
-    const sendArea = document.getElementById("send-email-area");
-    if (sendArea) {
-      sendArea.hidden = true;
-      sendArea.innerHTML = "";
-    }
+    ["send-email-area", "send-wa-area"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.hidden = true;
+        el.innerHTML = "";
+      }
+    });
 
     const { formData, error } = collectFormData(batchFields, recipientFields);
     if (error) {
@@ -804,6 +928,7 @@ function setupSubmitHandler(batchFields, recipientFields) {
             );
             submitBtn.disabled = false;
             renderSendEmailArea(job_id, jobStatus.can_send_email);
+            renderSendWaArea(job_id, jobStatus.can_send_whatsapp);
           } else if (jobStatus.status === "error") {
             clearInterval(pollInterval);
             setStatus(

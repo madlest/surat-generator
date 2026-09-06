@@ -60,6 +60,13 @@ class LetterType(SQLModel, table=True):
     email_subject_template: str | None = Field(default=None)
     email_body_template: str | None = Field(default=None)
 
+    # Kirim NOTIFIKASI via WhatsApp (v2.1 Stage C) — kapabilitas independen
+    # dari email. `wa.me` tidak bisa lampiran, jadi ini murni pesan teks;
+    # PDF-nya tetap lewat email. Saat True wajib ada tepat satu field `phone`
+    # di level recipient + template non-kosong (divalidasi di layer API).
+    send_whatsapp_enabled: bool = Field(default=False)
+    whatsapp_message_template: str | None = Field(default=None)
+
     unit: Unit = Relationship(back_populates="letter_types")
     fields: list["LetterField"] = Relationship(back_populates="letter_type")
 

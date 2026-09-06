@@ -447,6 +447,31 @@ select:focus {
   background: var(--success-tint);
 }
 
+.send-wa-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+.send-wa-row.done {
+  background: var(--success-tint);
+}
+.send-wa-open {
+  color: var(--teal-dark);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.send-wa-mark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--ink-soft, inherit);
+  cursor: pointer;
+}
+.send-wa-mark input {
+  width: auto;
+}
+
 .date-input {
   position: relative;
   display: grid;

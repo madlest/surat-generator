@@ -369,6 +369,40 @@
             </div>
           </section>
 
+          <section class="admin-email-config" id="admin-wa-config">
+            <h3 class="admin-email-config-title">Notifikasi via WhatsApp</h3>
+            <label class="admin-email-toggle">
+              <input type="checkbox" id="admin-send-whatsapp-enabled" />
+              <span>
+                Kirim notifikasi WhatsApp ke penerima setelah digenerate
+              </span>
+            </label>
+            <p class="admin-email-config-note">
+              Butuh satu field bertipe <strong>Telepon / WA</strong> di level
+              <strong>Per penerima</strong> sebagai nomor tujuan. WhatsApp tidak
+              bisa dilampiri file — ini cuma pesan teks; PDF tetap lewat email.
+              Setelah generate, panel <em>Kirim WhatsApp</em> muncul: tiap
+              penerima punya tombol buka chat (pesan sudah terisi), admin tekan
+              kirim sendiri lalu menandai selesai.
+            </p>
+            <div id="admin-wa-fields" hidden>
+              <div class="field">
+                <label for="admin-wa-message">Isi pesan WhatsApp</label>
+                <textarea
+                  id="admin-wa-message"
+                  rows="5"
+                  placeholder="Assalamualaikum {nama_dosen}, surat permohonan mengajar dari Fakultas Farmasi sudah kami kirim ke email Anda. Terima kasih."
+                ></textarea>
+              </div>
+              <p class="admin-email-config-note">
+                Placeholder <code>{key_field}</code> sama seperti email. WhatsApp
+                mengenal <code>*tebal*</code> dan <code>_miring_</code>. Sama
+                seperti email, satu penerima yang muncul beberapa kali dihubungi
+                sekali — hindari <code>{matakuliah}</code> di sini.
+              </p>
+            </div>
+          </section>
+
           <button
             type="button"
             class="add-btn"
