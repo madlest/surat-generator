@@ -68,6 +68,28 @@ def test_plan_dedupe_email_sama():
     assert plans[0]["label"] == "Budi, Sri"  # label digabung
 
 
+def test_plan_dedupe_tambah_catatan_kalau_lebih_dari_satu_surat():
+    # Dosen ngampu 2 matkul -> 1 email, 2 PDF, badan dari baris pertama + catatan.
+    m = [
+        {"index": 1, "label": "Dr. Budi", "pdf_path": "/tmp/a.pdf",
+         "recipient_values": {"email": "budi@x.com"},
+         "render_values": {"nama": "Dr. Budi", "matkul": "Kimia"}},
+        {"index": 2, "label": "Dr. Budi", "pdf_path": "/tmp/b.pdf",
+         "recipient_values": {"email": "budi@x.com"},
+         "render_values": {"nama": "Dr. Budi", "matkul": "Biostat"}},
+    ]
+    plans = plan_email_deliveries(m, "email", "Surat {nama}", "Mengajar {matkul}.")
+    assert len(plans) == 1
+    assert plans[0]["body"] == "Mengajar Kimia.\n\n(Terlampir 2 surat dalam email ini.)"
+    assert plans[0]["label"] == "Dr. Budi"  # nama sama -> tidak digabung
+
+
+def test_plan_satu_surat_tanpa_catatan():
+    m = _manifest(("Budi", "/tmp/a.pdf", {"email": "budi@x.com", "nama": "Budi"}))
+    plans = plan_email_deliveries(m, "email", "S", "Halo.")
+    assert plans[0]["body"] == "Halo."
+
+
 def test_plan_lewati_tanpa_email():
     m = _manifest(("Budi", "/tmp/a.pdf", {"email": "", "nama": "Budi"}))
     assert plan_email_deliveries(m, "email", "S", "B") == []

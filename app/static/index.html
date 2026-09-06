@@ -356,7 +356,15 @@
               </div>
               <p class="admin-email-config-note">
                 Pakai <code>{key_field}</code> untuk menyisipkan nilai penerima
-                (mis. <code>{nama_dosen}</code>). PDF surat otomatis dilampirkan.
+                atau detail surat (mis. <code>{nama_dosen}</code>). PDF surat
+                otomatis dilampirkan.
+              </p>
+              <p class="admin-email-config-note">
+                Kalau satu penerima bisa muncul beberapa kali dalam satu batch
+                (mis. dosen mengampu 2 matakuliah), semua PDF-nya digabung ke
+                satu email. Isi email hanya dirender dari data baris pertama —
+                jadi hindari <code>{matakuliah}</code> / <code>{semester}</code>
+                di sini, cukup kalimat umum.
               </p>
             </div>
           </section>

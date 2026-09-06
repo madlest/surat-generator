@@ -88,6 +88,13 @@ def plan_email_deliveries(
     for email, plan in by_email.items():
         if len(labels_seen[email]) > 1:
             plan["label"] = ", ".join(labels_seen[email])
+        # Satu kontak bisa muncul beberapa kali dalam satu batch (mis. dosen
+        # mengampu 2 matkul → 2 surat). Kita tetap kirim SATU email dengan
+        # semua PDF, tapi subjek/badan cuma dirender dari baris pertama —
+        # jadi tambahkan catatan supaya penerima tahu ada lebih dari satu.
+        n = len(plan["pdf_paths"])
+        if n > 1:
+            plan["body"] = plan["body"].rstrip() + f"\n\n(Terlampir {n} surat dalam email ini.)"
 
     return list(by_email.values())
 
