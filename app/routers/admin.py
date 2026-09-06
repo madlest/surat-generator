@@ -14,6 +14,7 @@ from app.dependencies import get_current_user, scope_unit_id
 from app.models.letter_type import FieldFiller, FieldLevel, FieldType, LetterType, LetterField
 from app.models.organization import Unit, User, UserRole
 from app.services.letter_type_repo import get_letter_type_with_fields
+from app.services.markdown_render import markdown_to_email_html
 from app.services.template_inspector import TemplateInspectionError, detect_custom_variables
 
 router = APIRouter(prefix="/admin/letter-types", tags=["Admin - Jenis Surat"])
@@ -353,6 +354,16 @@ def inspect_template(
         temp_path.unlink(missing_ok=True)
 
     return {"detected_variables": variables}
+
+
+@router.post("/preview-email")
+def preview_email_body(
+    markdown: str = Form(default=""),
+    current_user: User = Depends(get_current_user),
+):
+    """Render Markdown badan email → HTML untuk pratinjau di wizard. Renderer
+    yang sama dipakai saat kirim sungguhan, jadi pratinjau akurat."""
+    return {"html": markdown_to_email_html(markdown)}
 
 
 @router.post("")

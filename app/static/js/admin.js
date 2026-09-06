@@ -9,6 +9,23 @@ import { guessFieldType, setText } from "./helpers.js";
 import { showView } from "./views.js";
 import { loadDashboard } from "./dashboard.js";
 import { getCurrentUser } from "./auth.js";
+import { attachComposer, waFormatToHtml } from "./composer.js";
+
+async function renderEmailPreview(markdown) {
+  const fd = new FormData();
+  fd.append("markdown", markdown);
+  const res = await fetch("/admin/letter-types/preview-email", {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) throw new Error();
+  return (await res.json()).html;
+}
+
+attachComposer(document.getElementById("admin-email-body"), "md", renderEmailPreview);
+attachComposer(document.getElementById("admin-wa-message"), "wa", (t) =>
+  Promise.resolve(waFormatToHtml(t)),
+);
 
 let selectedTemplateFile = null;
 let detectedVariables = [];

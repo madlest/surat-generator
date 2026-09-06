@@ -19,6 +19,12 @@ from sqlmodel import Session, select
 
 from app.models.delivery import Delivery, DeliveryChannel, DeliveryStatus
 from app.services.email_sender import EmailSenderError, GmailAuthExpired, send_email
+from app.services.markdown_render import markdown_to_email_html
+
+# Karakter inline Markdown yang bisa "aktif" tak sengaja kalau ada di NILAI
+# placeholder (mis. nama "A_B" → miring). Di-escape hanya saat merender BADAN
+# email; subjek & pesan WA tetap apa adanya.
+_MD_ESCAPE_RE = re.compile(r"([\\`*_\[\]<>])")
 
 
 def _append_note(body: str, note: str) -> str:
@@ -30,12 +36,16 @@ def _append_note(body: str, note: str) -> str:
 _PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z0-9_]+)\}")
 
 
-def render_template(template: str, values: dict) -> str:
+def render_template(template: str, values: dict, *, md_escape: bool = False) -> str:
     """Ganti tiap `{key}` dengan `values[key]`. Key tak dikenal → string
-    kosong. `None` → string kosong."""
+    kosong. `None` → string kosong. `md_escape=True` meng-escape karakter
+    inline Markdown di dalam nilai (dipakai untuk badan email)."""
     def _sub(match: re.Match) -> str:
         val = values.get(match.group(1))
-        return "" if val is None else str(val)
+        if val is None:
+            return ""
+        text = str(val)
+        return _MD_ESCAPE_RE.sub(r"\\\1", text) if md_escape else text
 
     return _PLACEHOLDER_RE.sub(_sub, template or "")
 
@@ -79,7 +89,9 @@ def plan_email_deliveries(
                 "contact": email,
                 "label": label or email,
                 "subject": render_template(subject_template, render_values),
-                "body": render_template(body_template, render_values),
+                # Badan email = Markdown; nilai placeholder di-escape supaya
+                # tidak jadi format tak sengaja.
+                "body": render_template(body_template, render_values, md_escape=True),
                 "pdf_paths": [],
                 "attachment_names": [],
             }
@@ -226,12 +238,14 @@ def run_email_send_batch(engine, *, payloads: list[dict], refresh_token: str, se
             for path in item["pdf_paths"]:
                 attachments.append((Path(path).name, Path(path).read_bytes()))
 
+            body_md = item["body"] or ""
             message_id = send_email(
                 refresh_token=refresh_token,
                 sender=sender,
                 to=item["contact"],
                 subject=item["subject"] or "",
-                body_text=item["body"] or "",
+                body_text=body_md,  # fallback teks = Markdown mentah (tetap terbaca)
+                body_html=markdown_to_email_html(body_md),
                 attachments=attachments,
             )
             _finish(engine, item["delivery_id"], DeliveryStatus.sent, message_id=message_id)

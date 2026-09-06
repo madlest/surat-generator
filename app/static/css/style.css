@@ -379,6 +379,68 @@ select:focus {
 .admin-email-config .field {
   margin-top: 14px;
 }
+
+.composer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.composer-btn {
+  width: auto;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--teal-dark);
+  background: var(--paper-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.composer-btn:hover {
+  background: var(--teal-tint);
+  border-color: var(--teal);
+}
+.composer-preview-toggle {
+  margin-left: auto;
+}
+.composer-btn.active {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+.composer-preview {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.composer-preview[hidden] {
+  display: none;
+}
+.composer-preview ul,
+.composer-preview ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+.composer-preview blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--ink-soft, inherit);
+}
+.composer-preview code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.92em;
+  background: var(--teal-tint);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
 .admin-email-config #admin-email-fields > .admin-email-config-note {
   padding-left: 2px;
 }
