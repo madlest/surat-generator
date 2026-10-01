@@ -576,8 +576,25 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(20, 112, 137, 0.15);
 }
 
+/* Tinggi semua kolom isian dipatok sama (bukan dihitung dari padding + teks)
+   supaya baris berisi judul + unggah file + tombol hapus selalu sejajar. Tanpa
+   ini, tombol bawaan browser membuat kotak file lebih tinggi/rendah beberapa
+   piksel. Input date-native sengaja tak ikut: ia disembunyikan 1px. */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="file"],
+select {
+  height: 40px;
+}
+
 input[type="file"] {
-  padding: 6px 8px;
+  /* 5px + tombol 28px + 5px + garis tepi 2px = 40px persis. Padding vertikal
+     eksplisit (bukan mengandalkan perataan tengah bawaan browser) supaya
+     tombol tidak "mengambang" di dalam kotak. */
+  padding: 5px 6px;
+  box-sizing: border-box;
   font-size: 13px;
   color: var(--ink-soft);
   cursor: pointer;
@@ -589,7 +606,8 @@ input[type="file"]::file-selector-button {
   font-family: "Inter", sans-serif;
   font-weight: 600;
   font-size: 12.5px;
-  padding: 7px 14px;
+  height: 28px;
+  padding: 0 14px;
   margin-right: 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -1256,7 +1274,7 @@ button.submit:disabled {
    pada baris manual — supaya kolom 2–5 sejajar persis di semua baris. */
 .admin-field-row {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(140px, 1fr) auto 40px;
+  grid-template-columns: auto minmax(200px, 2fr) minmax(190px, 1fr) 40px;
   gap: 12px;
   align-items: end;
   padding: 12px;
@@ -1974,4 +1992,43 @@ button.submit:disabled {
 .submit-hint {
   display: block;
   margin: 10px 2px 0;
+}
+
+/* Lipatan "Pengaturan lain" (jenis isian + wajib) di bawah tiap baris isian */
+.admin-field-more {
+  grid-column: 2 / -1;
+}
+.admin-field-more > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink-soft);
+  user-select: none;
+}
+.admin-field-more > summary:hover {
+  color: var(--teal);
+}
+.admin-field-more-body {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 10px;
+}
+@media (max-width: 560px) {
+  .admin-field-more {
+    grid-column: 1;
+  }
+  .admin-field-more-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Alasan tombol pratinjau belum aktif: isian wajib yang masih kosong */
+.form-missing {
+  margin: 12px 2px 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.form-missing[hidden] {
+  display: none;
 }
