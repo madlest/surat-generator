@@ -540,7 +540,30 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
     removeCell.appendChild(removeBtn);
   }
 
-  row.append(dragHandle, keyCol, typeCol, levelCol, requiredCol, removeCell);
+  // Yang wajib diputuskan admin per isian cuma nama dan "Isinya". Jenis isian
+  // (sudah ditebak dari namanya) dan Wajib dilipat di "Pengaturan lain" supaya
+  // baris tidak penuh; ringkasannya tetap terlihat di judul lipatan.
+  const more = document.createElement("details");
+  more.className = "admin-field-more";
+  // Isian manual belum punya tebakan yang bisa dipercaya dari template, jadi
+  // pengaturannya langsung terbuka.
+  more.open = isManual;
+  const moreSummary = document.createElement("summary");
+  const moreBody = document.createElement("div");
+  moreBody.className = "admin-field-more-body";
+  moreBody.append(typeCol, requiredCol);
+  more.append(moreSummary, moreBody);
+  const syncMoreSummary = () => {
+    const typeText = typeSelect.options[typeSelect.selectedIndex].text;
+    moreSummary.textContent = `Pengaturan lain · ${typeText} · ${
+      requiredCheckbox.checked ? "Wajib diisi" : "Boleh kosong"
+    }`;
+  };
+  typeSelect.addEventListener("change", syncMoreSummary);
+  requiredCheckbox.addEventListener("change", syncMoreSummary);
+  syncMoreSummary();
+
+  row.append(dragHandle, keyCol, levelCol, removeCell, more);
 
   return row;
 }

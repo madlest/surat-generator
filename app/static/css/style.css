@@ -1256,7 +1256,7 @@ button.submit:disabled {
    pada baris manual — supaya kolom 2–5 sejajar persis di semua baris. */
 .admin-field-row {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(140px, 1fr) auto 40px;
+  grid-template-columns: auto minmax(200px, 2fr) minmax(190px, 1fr) 40px;
   gap: 12px;
   align-items: end;
   padding: 12px;
@@ -1974,4 +1974,33 @@ button.submit:disabled {
 .submit-hint {
   display: block;
   margin: 10px 2px 0;
+}
+
+/* Lipatan "Pengaturan lain" (jenis isian + wajib) di bawah tiap baris isian */
+.admin-field-more {
+  grid-column: 2 / -1;
+}
+.admin-field-more > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink-soft);
+  user-select: none;
+}
+.admin-field-more > summary:hover {
+  color: var(--teal);
+}
+.admin-field-more-body {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 10px;
+}
+@media (max-width: 560px) {
+  .admin-field-more {
+    grid-column: 1;
+  }
+  .admin-field-more-body {
+    grid-template-columns: 1fr;
+  }
 }
