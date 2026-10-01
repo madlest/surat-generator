@@ -1970,3 +1970,8 @@ button.submit:disabled {
 .send-requirement[hidden] {
   display: none;
 }
+
+.submit-hint {
+  display: block;
+  margin: 10px 2px 0;
+}
