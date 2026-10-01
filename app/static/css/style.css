@@ -1929,3 +1929,44 @@ button.submit:disabled {
   flex: 1 1 100%;
   margin-top: 10px;
 }
+/* Tombol "sisipkan isian" di pengaturan email/WA */
+.insert-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+.insert-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.insert-chip:hover {
+  background: var(--teal-tint);
+}
+.insert-chips:empty {
+  display: none;
+}
+
+/* Status syarat kirim email/WA: merah saat belum terpenuhi, hijau saat siap */
+.send-requirement {
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  background: var(--error-bg);
+  color: var(--error);
+}
+.send-requirement.ok {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.send-requirement[hidden] {
+  display: none;
+}

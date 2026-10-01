@@ -243,7 +243,7 @@ document
     }
 
     statusEl.className = "status show loading";
-    statusEl.textContent = "Mendeteksi variabel…";
+    statusEl.textContent = "Membaca isian dari template…";
 
     try {
       const formData = new FormData();
@@ -257,7 +257,7 @@ document
         throw new Error(
           typeof data.detail === "string"
             ? data.detail
-            : "Gagal mendeteksi variabel.",
+            : "Gagal membaca isian dari template.",
         );
 
       detectedVariables = data.detected_variables || [];
@@ -431,8 +431,8 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
     const keyInput = document.createElement("input");
     keyInput.type = "text";
     keyInput.className = "admin-field-key-input";
-    keyInput.placeholder = "key, mis. nomor_wa";
-    keyInput.setAttribute("aria-label", "Key field manual");
+    keyInput.placeholder = "kode isian, mis. nomor_wa";
+    keyInput.setAttribute("aria-label", "Kode isian manual");
     keyInput.value = key;
     // Key dipakai sebagai nama kolom form/CSV — jaga tetap bersih & sinkron
     // ke dataset supaya drag-reorder tidak kehilangan identitasnya.
@@ -460,14 +460,14 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
   labelInput.type = "text";
   labelInput.id = labelId;
   labelInput.className = "admin-field-label-input";
-  labelInput.placeholder = "Label yang tampil di form";
+  labelInput.placeholder = "Nama isian yang tampil di form";
   labelInput.value = existing ? existing.label : key ? humanizeKey(key) : "";
   keyCol.appendChild(labelInput);
 
   // Kolom tipe.
   const typeCol = document.createElement("div");
   typeCol.className = "field";
-  const typeLabel = setText(document.createElement("label"), "Tipe");
+  const typeLabel = setText(document.createElement("label"), "Jenis isian");
   typeLabel.setAttribute("for", typeId);
   const typeSelect = document.createElement("select");
   typeSelect.id = typeId;
@@ -486,14 +486,14 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
   // Kolom level.
   const levelCol = document.createElement("div");
   levelCol.className = "field";
-  const levelLabel = setText(document.createElement("label"), "Level");
+  const levelLabel = setText(document.createElement("label"), "Isinya");
   levelLabel.setAttribute("for", levelId);
   const levelSelect = document.createElement("select");
   levelSelect.id = levelId;
   levelSelect.className = "admin-field-level-select";
   [
-    ["batch", "Sekali per surat"],
-    ["recipient", "Per penerima"],
+    ["batch", "Sama untuk semua penerima"],
+    ["recipient", "Beda tiap penerima"],
   ].forEach(([value, text]) => {
     levelSelect.appendChild(new Option(text, value));
   });
@@ -533,8 +533,8 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "remove-btn";
-    removeBtn.title = "Hapus field ini";
-    removeBtn.setAttribute("aria-label", "Hapus field manual");
+    removeBtn.title = "Hapus isian ini";
+    removeBtn.setAttribute("aria-label", "Hapus isian manual");
     removeBtn.innerHTML = "&#128465;";
     removeBtn.addEventListener("click", () => row.remove());
     removeCell.appendChild(removeBtn);
@@ -618,7 +618,7 @@ function emailConfigError(fieldsConfig) {
     (f) => f.field_type === "email" && f.level === "recipient",
   );
   if (emailRecipientFields.length !== 1) {
-    return `Kirim email butuh tepat satu field bertipe Email di level "Per penerima" sebagai alamat tujuan. Sekarang ada ${emailRecipientFields.length}.`;
+    return `Kirim email butuh tepat satu isian berjenis Email yang "Beda tiap penerima" sebagai alamat tujuan. Sekarang ada ${emailRecipientFields.length}.`;
   }
   if (
     !document.getElementById("admin-email-subject").value.trim() ||
@@ -635,13 +635,94 @@ function whatsappConfigError(fieldsConfig) {
     (f) => f.field_type === "phone" && f.level === "recipient",
   );
   if (phoneRecipientFields.length !== 1) {
-    return `Notifikasi WhatsApp butuh tepat satu field bertipe Telepon/WA di level "Per penerima" sebagai nomor tujuan. Sekarang ada ${phoneRecipientFields.length}.`;
+    return `Notifikasi WhatsApp butuh tepat satu isian berjenis Telepon / WA yang "Beda tiap penerima" sebagai nomor tujuan. Sekarang ada ${phoneRecipientFields.length}.`;
   }
   if (!document.getElementById("admin-wa-message").value.trim()) {
     return "Isi pesan WhatsApp wajib diisi kalau notifikasi WA diaktifkan.";
   }
   return null;
 }
+
+// Tombol "sisipkan isian": klik nama isian untuk memasukkan {kode} ke kolom
+// subjek/isi yang terakhir diketik, jadi admin tak perlu hafal kodenya.
+const chipTargets = {
+  "admin-email-chips": ["admin-email-subject", "admin-email-body"],
+  "admin-wa-chips": ["admin-wa-message"],
+};
+const lastChipTarget = {};
+
+// Syarat kirim ditampilkan langsung (bukan baru saat simpan): tepat satu isian
+// berjenis tertentu yang beda tiap penerima sebagai alamat/nomor tujuan.
+function refreshSendRequirements(fields) {
+  [
+    ["admin-email-requirement", "admin-send-email-enabled", "email", "Email", "alamat tujuan"],
+    ["admin-wa-requirement", "admin-send-whatsapp-enabled", "phone", "Telepon / WA", "nomor tujuan"],
+  ].forEach(([id, toggleId, type, typeLabel, purpose]) => {
+    const el = document.getElementById(id);
+    const found = fields.filter(
+      (f) => f.field_type === type && f.level === "recipient",
+    );
+    el.hidden = !document.getElementById(toggleId).checked;
+    el.classList.toggle("ok", found.length === 1);
+    if (found.length === 1) {
+      el.textContent = `✓ ${purpose[0].toUpperCase()}${purpose.slice(1)} diambil dari isian "${found[0].label}".`;
+    } else if (found.length === 0) {
+      el.textContent = `Belum ada isian berjenis ${typeLabel} yang "Beda tiap penerima". Tambahkan satu di daftar isian di atas sebagai ${purpose}.`;
+    } else {
+      el.textContent = `Ada ${found.length} isian berjenis ${typeLabel} yang "Beda tiap penerima". Sisakan satu saja sebagai ${purpose}.`;
+    }
+  });
+}
+
+function refreshInsertChips() {
+  const fields = bacaFieldsDariForm().filter((f) => f.field_key);
+  refreshSendRequirements(fields);
+  Object.entries(chipTargets).forEach(([chipsId, targetIds]) => {
+    const box = document.getElementById(chipsId);
+    box.innerHTML = "";
+    if (fields.length === 0) return;
+    box.appendChild(setText(document.createElement("span"), "Sisipkan isian:"));
+    fields.forEach((f) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "insert-chip";
+      btn.textContent = f.label;
+      btn.title = `{${f.field_key}}`;
+      // Cegah kolom teks kehilangan fokus/seleksi saat tombol ditekan.
+      btn.addEventListener("mousedown", (e) => e.preventDefault());
+      btn.addEventListener("click", () => {
+        const ta = document.getElementById(
+          lastChipTarget[chipsId] || targetIds[targetIds.length - 1],
+        );
+        const token = `{${f.field_key}}`;
+        const s = ta.selectionStart ?? ta.value.length;
+        const e = ta.selectionEnd ?? s;
+        ta.value = ta.value.slice(0, s) + token + ta.value.slice(e);
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = s + token.length;
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      box.appendChild(btn);
+    });
+  });
+}
+document
+  .getElementById("admin-fields-list")
+  .addEventListener("input", refreshInsertChips);
+document
+  .getElementById("admin-fields-list")
+  .addEventListener("change", refreshInsertChips);
+Object.entries(chipTargets).forEach(([chipsId, targetIds]) => {
+  targetIds.forEach((id) => {
+    document.getElementById(id).addEventListener("focus", () => {
+      lastChipTarget[chipsId] = id;
+      refreshInsertChips();
+    });
+  });
+});
+["admin-send-email-enabled", "admin-send-whatsapp-enabled"].forEach((id) =>
+  document.getElementById(id).addEventListener("change", refreshInsertChips),
+);
 
 document.getElementById("admin-name").addEventListener("input", (e) => {
   if (!slugManuallyEdited) {
@@ -663,7 +744,7 @@ document
 
     if (!name || !slug) {
       statusEl.className = "status show error";
-      statusEl.textContent = "Nama dan slug jenis surat wajib diisi.";
+      statusEl.textContent = "Nama dan alamat singkat jenis surat wajib diisi.";
       return;
     }
     // Saat menambah, template wajib ada. Saat menyunting, template lama tetap

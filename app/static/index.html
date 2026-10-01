@@ -6,6 +6,7 @@
     <title>Surat Generator</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap"
       rel="stylesheet"
@@ -190,8 +191,8 @@
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1>Surat Generator</h1>
           <p>
-            Buat surat resmi untuk banyak penerima sekaligus, tanpa mail merge
-            manual.
+            Buat banyak surat resmi sekaligus — tinggal isi daftar
+            penerimanya.
           </p>
           <span class="letter-type-tag" id="form-type-tag"></span>
         </header>
@@ -211,7 +212,7 @@
           <div class="eyebrow">Universitas Muhammadiyah Banjarmasin</div>
           <h1 id="admin-title">Tambah Jenis Surat Baru</h1>
           <p id="admin-subtitle">
-            Upload template docx, lalu atur field-nya. Tidak perlu kode.
+            Unggah template Word (.docx), lalu atur isian-isiannya.
           </p>
         </header>
 
@@ -233,7 +234,7 @@
               <strong>Unduh template .docx yang sedang dipakai</strong>
               <small
                 >Berguna sebagai berkas dasar kalau mau merevisi
-                (menambah/mengubah placeholder) tanpa membuat ulang formatnya
+                (menambah/mengubah isian) tanpa membuat ulang formatnya
                 dari nol.</small
               >
             </span>
@@ -244,9 +245,9 @@
             >
             <input type="file" id="admin-template-file" accept=".docx" />
             <small class="field-hint">
-              Placeholder variabel di template ditulis dengan sintaks Jinja,
-              misal
-              <code>{{nama_dosen}}</code>.
+              Di file template, tulis bagian yang berubah dengan kurung kurawal ganda,
+              misal <code>{{nama_dosen}}</code>. Isian itu nanti muncul
+              sebagai kolom di form.
             </small>
           </div>
           <button
@@ -255,7 +256,7 @@
             id="admin-inspect-btn"
             style="margin-top: 16px"
           >
-            Deteksi Variabel &rarr;
+            Baca Isian dari Template &rarr;
           </button>
           <button
             type="button"
@@ -277,8 +278,7 @@
             <label for="admin-unit-select">Unit Pemilik</label>
             <select id="admin-unit-select"></select>
             <small class="field-hint">
-              Anda login sebagai superadmin, jadi harus memilih unit mana yang
-              memiliki jenis surat ini. Tidak bisa dipindah setelah dibuat.
+              Pilih unit yang memiliki jenis surat ini. Tidak bisa dipindah setelah dibuat.
             </small>
           </div>
 
@@ -292,22 +292,29 @@
               />
             </div>
             <div class="field">
-              <label for="admin-slug">Slug (identifier unik)</label>
+              <label for="admin-slug">Alamat singkat</label>
               <input
                 type="text"
                 id="admin-slug"
-                placeholder="contoh: permohonan-mengajar"
+                placeholder="otomatis dari nama, mis. permohonan-mengajar"
               />
             </div>
           </div>
 
           <div id="admin-no-vars-note" style="display: none; margin: 16px 0">
             <small class="field-hint"
-              >Tidak ada variabel custom terdeteksi di template ini.</small
+              >Template ini tidak punya isian tambahan.</small
             >
           </div>
 
-          <div id="admin-fields-list" style="margin-top: 20px"></div>
+          <small class="field-hint" style="display: block; margin-top: 16px">
+            <strong>Isinya:</strong> pilih <em>Sama untuk semua penerima</em>
+            untuk data yang sama di setiap surat (mis. program studi, tahun
+            akademik) — diisi sekali di form. Pilih
+            <em>Beda tiap penerima</em> untuk data yang berubah per orang (mis.
+            nama dosen) — menjadi kolom di daftar penerima atau CSV.
+          </small>
+          <div id="admin-fields-list" style="margin-top: 12px"></div>
 
           <button
             type="button"
@@ -315,12 +322,12 @@
             id="admin-add-manual-field-btn"
             style="margin-top: 4px"
           >
-            + Tambah field manual (tidak dari template)
+            + Tambah isian di luar template
           </button>
           <small class="field-hint" style="display: block; margin: 6px 2px 0">
-            Field yang tidak ada di template docx — mis. nomor WhatsApp atau
-            email tujuan pengiriman surat. Nilainya diisi di form/CSV tapi tidak
-            muncul di badan surat.
+            Isian yang tidak ada di template — mis. nomor WhatsApp atau email
+            tujuan pengiriman. Diisi di form atau CSV, tapi tidak muncul di
+            isi surat.
           </small>
 
           <section class="admin-email-config" id="admin-email-config">
@@ -332,12 +339,14 @@
               </span>
             </label>
             <p class="admin-email-config-note">
-              Butuh satu field bertipe <strong>Email</strong> di level
-              <strong>Per penerima</strong> sebagai alamat tujuan. Setelah
+              Butuh satu isian berjenis <strong>Email</strong> yang
+              <strong>Beda tiap penerima</strong> sebagai alamat tujuan. Setelah
               generate, tombol <em>Kirim Email</em> muncul di langkah "Buat
               Dokumen" (perlu Gmail Anda terhubung).
             </p>
+            <p class="send-requirement" id="admin-email-requirement" hidden></p>
             <div id="admin-email-fields" hidden>
+              <div class="insert-chips" id="admin-email-chips"></div>
               <div class="field">
                 <label for="admin-email-subject">Subjek email</label>
                 <input
@@ -355,19 +364,16 @@
                 ></textarea>
               </div>
               <p class="admin-email-config-note">
-                Format <strong>Markdown</strong> — pakai toolbar di atas untuk
-                tebal, miring, daftar berpoin/bernomor, kutipan, tautan; tekan
-                <em>Pratinjau</em> untuk lihat hasilnya. Pakai
-                <code>{key_field}</code> untuk menyisipkan nilai penerima /
-                detail surat (mis. <code>{nama_dosen}</code>). PDF surat
-                otomatis dilampirkan.
+                Klik nama isian di atas untuk menyisipkannya, mis. nama
+                penerima. PDF surat otomatis dilampirkan. Tombol di atas kolom
+                isi dipakai untuk format teks; <em>Pratinjau</em> menampilkan
+                hasilnya.
               </p>
               <p class="admin-email-config-note">
-                Kalau satu penerima bisa muncul beberapa kali dalam satu batch
-                (mis. dosen mengampu 2 matakuliah), semua PDF-nya digabung ke
-                satu email. Isi email hanya dirender dari data baris pertama —
-                jadi hindari <code>{matakuliah}</code> / <code>{semester}</code>
-                di sini, cukup kalimat umum.
+                Kalau satu penerima punya beberapa surat (mis. dosen mengampu 2
+                matakuliah), semua PDF-nya dikirim dalam satu email. Karena itu
+                jangan sisipkan isian yang berbeda tiap surat, seperti
+                matakuliah atau semester — tulis kalimat umum saja.
               </p>
             </div>
           </section>
@@ -381,14 +387,16 @@
               </span>
             </label>
             <p class="admin-email-config-note">
-              Butuh satu field bertipe <strong>Telepon / WA</strong> di level
-              <strong>Per penerima</strong> sebagai nomor tujuan. WhatsApp tidak
+              Butuh satu isian berjenis <strong>Telepon / WA</strong> yang
+              <strong>Beda tiap penerima</strong> sebagai nomor tujuan. WhatsApp tidak
               bisa dilampiri file — ini cuma pesan teks; PDF tetap lewat email.
               Setelah generate, panel <em>Kirim WhatsApp</em> muncul: tiap
               penerima punya tombol buka chat (pesan sudah terisi), admin tekan
               kirim sendiri lalu menandai selesai.
             </p>
+            <p class="send-requirement" id="admin-wa-requirement" hidden></p>
             <div id="admin-wa-fields" hidden>
+              <div class="insert-chips" id="admin-wa-chips"></div>
               <div class="field">
                 <label for="admin-wa-message">Isi pesan WhatsApp</label>
                 <textarea
@@ -398,11 +406,11 @@
                 ></textarea>
               </div>
               <p class="admin-email-config-note">
-                Toolbar di atas menyisipkan format WhatsApp: <code>*tebal*</code>,
-                <code>_miring_</code>, <code>~coret~</code>, daftar
-                berpoin/bernomor, kutipan. Placeholder <code>{key_field}</code>
-                sama seperti email. Satu penerima yang muncul beberapa kali
-                dihubungi sekali — hindari <code>{matakuliah}</code> di sini.
+                Klik nama isian di atas untuk menyisipkannya. Tombol format
+                memakai gaya WhatsApp (<code>*tebal*</code>,
+                <code>_miring_</code>). Penerima yang punya beberapa surat hanya
+                dihubungi sekali, jadi jangan sisipkan isian yang berbeda tiap
+                surat, seperti matakuliah.
               </p>
             </div>
           </section>
@@ -476,7 +484,7 @@
               />
             </div>
             <div class="field">
-              <label for="unit-slug-input">Slug</label>
+              <label for="unit-slug-input">Alamat singkat</label>
               <input
                 type="text"
                 id="unit-slug-input"
@@ -486,9 +494,8 @@
             </div>
           </div>
           <small class="field-hint">
-            Slug dipakai di alamat URL dan nama folder template, jadi hanya boleh
-            huruf kecil, angka, dan tanda hubung. Tidak bisa diubah setelah
-            dibuat.
+            Dipakai di alamat web unit ini, jadi hanya boleh huruf kecil, angka,
+            dan tanda hubung. Tidak bisa diubah setelah dibuat.
           </small>
           <button type="button" class="add-btn" id="unit-add-btn">
             Tambah Unit

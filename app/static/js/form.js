@@ -94,8 +94,8 @@ function renderDynamicForm(letterType) {
           ? `
       <section class="step">
         <div class="step-head">
-          <span class="step-num"></span><h2>Detail Tambahan</h2>
-          <span class="hint">Khusus jenis surat ini</span>
+          <span class="step-num"></span><h2>Isian Surat</h2>
+          <span class="hint">Berlaku untuk semua penerima</span>
         </div>
         <div class="field-grid">
           ${batchFields.map(batchFieldMarkup).join("")}
@@ -138,9 +138,9 @@ function renderDynamicForm(letterType) {
       <section class="step">
         <div class="step-head"><span class="step-num"></span><h2>Buat Dokumen</h2></div>
         <div class="submit-area">
-          <div class="stamp" id="stamp">SIAP<br>DIKIRIM</div>
+          <div class="stamp" id="stamp">SIAP<br>DIBUAT</div>
           <button type="button" class="preview-btn" id="preview-btn" disabled>Preview Penerima Pertama</button>
-          <button type="submit" class="submit" id="submit-btn">Generate &amp; Unduh ZIP</button>
+          <button type="submit" class="submit" id="submit-btn">Buat Surat &amp; Unduh</button>
         </div>
         <div class="status" id="status" role="status" aria-live="polite"></div>
         <div class="progress-wrap" id="progress-wrap">
