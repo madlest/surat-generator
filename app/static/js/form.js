@@ -107,8 +107,12 @@ function renderDynamicForm(letterType) {
       <section class="step">
         <div class="step-head">
           <span class="step-num"></span><h2>Lampiran</h2>
-          <span class="hint">Berlaku untuk semua penerima</span>
+          <span class="hint">Opsional · berlaku untuk semua penerima</span>
         </div>
+        <small class="field-hint" style="display: block; margin: -4px 2px 12px">
+          Berkas PDF (maks. 10 MB per file) yang ditambahkan di belakang setiap
+          surat, sesuai urutan di bawah.
+        </small>
         <div class="row-list" id="lampiran-list"></div>
         <button type="button" class="add-btn" id="add-lampiran">+ Tambahkan lampiran</button>
       </section>
@@ -144,6 +148,7 @@ function renderDynamicForm(letterType) {
           <button type="button" class="preview-btn" id="preview-btn" disabled>Pratinjau Surat Pertama</button>
           <button type="submit" class="submit" id="submit-btn">Buat Surat &amp; Unduh</button>
         </div>
+        <p class="form-missing" id="form-missing" hidden></p>
         <small class="field-hint submit-hint">
           Disarankan lihat <em>Pratinjau Surat Pertama</em> dulu untuk memastikan
           isinya benar, baru buat semua surat. Hasilnya diunduh sebagai satu
@@ -814,6 +819,36 @@ function updateStampState() {
   const isValid = form.checkValidity();
   stampEl.classList.toggle("ready", isValid);
   if (previewBtn) previewBtn.disabled = !isValid;
+  updateMissingHint(form, isValid);
+}
+
+// Tombol pratinjau yang mati tanpa alasan membingungkan, jadi sebutkan isian
+// wajib yang masih kosong. Nama isian yang sama di banyak baris penerima
+// cukup disebut sekali.
+function updateMissingHint(form, isValid) {
+  const hintEl = document.getElementById("form-missing");
+  if (!hintEl) return;
+  if (isValid) {
+    hintEl.hidden = true;
+    return;
+  }
+  const names = [];
+  form.querySelectorAll(":invalid").forEach((el) => {
+    const label =
+      (el.id && form.querySelector(`label[for="${el.id}"]`)?.textContent) ||
+      el.getAttribute("aria-label") ||
+      "";
+    const name = label.trim();
+    if (name && !names.includes(name)) names.push(name);
+  });
+  if (names.length === 0) {
+    hintEl.hidden = true;
+    return;
+  }
+  const shown = names.slice(0, 3).join(", ");
+  const rest = names.length > 3 ? ` dan ${names.length - 3} lainnya` : "";
+  hintEl.textContent = `Belum lengkap: ${shown}${rest}.`;
+  hintEl.hidden = false;
 }
 
 function setupSubmitHandler(batchFields, recipientFields) {
@@ -931,7 +966,7 @@ function setupSubmitHandler(batchFields, recipientFields) {
 
             setStatus(
               "success",
-              "Dokumen berhasil dibuat dan diunduh.",
+              `${jobStatus.total} surat berhasil dibuat dan diunduh sebagai file ZIP (satu PDF per penerima).`,
             );
             submitBtn.disabled = false;
             renderSendEmailArea(job_id, jobStatus.can_send_email);
