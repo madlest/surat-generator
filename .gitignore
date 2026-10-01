@@ -8,3 +8,16 @@ __pycache__/
 app/templates/uploaded/
 app/templates/archived/
 HANDOFF_CONTEXT.md
+
+# Cache alat & pengaturan editor/pribadi
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.vscode/
+.claude/
+.DS_Store
+*.log
+*.egg-info/
+
+# Berkas hasil/uji lokal
+*.zip
