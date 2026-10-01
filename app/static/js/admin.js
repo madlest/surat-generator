@@ -452,7 +452,7 @@ function makeFieldRow({ key = "", existing = null, isManual = false }) {
     const keyLabel = document.createElement("label");
     keyLabel.className = "field-key-label";
     keyLabel.setAttribute("for", labelId);
-    keyLabel.textContent = `{{ ${key} }}`;
+    keyLabel.textContent = `Kode di template: ${key}`;
     keyLabel.title = `{{ ${key} }}`;
     keyCol.appendChild(keyLabel);
   }
