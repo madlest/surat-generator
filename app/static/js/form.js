@@ -94,8 +94,8 @@ function renderDynamicForm(letterType) {
           ? `
       <section class="step">
         <div class="step-head">
-          <span class="step-num"></span><h2>Detail Tambahan</h2>
-          <span class="hint">Khusus jenis surat ini</span>
+          <span class="step-num"></span><h2>Isian Surat</h2>
+          <span class="hint">Berlaku untuk semua penerima</span>
         </div>
         <div class="field-grid">
           ${batchFields.map(batchFieldMarkup).join("")}
@@ -114,10 +114,10 @@ function renderDynamicForm(letterType) {
       </section>
 
       <section class="step">
-        <div class="step-head"><span class="step-num"></span><h2>Penerima</h2></div>
+        <div class="step-head"><span class="step-num"></span><h2>Penerima</h2><span class="hint">Satu surat dibuat untuk tiap penerima</span></div>
         <div class="mode-toggle">
-          <button type="button" class="mode-btn active" data-mode="list">Isi Daftar Langsung</button>
-          <button type="button" class="mode-btn" data-mode="csv">Upload CSV</button>
+          <button type="button" class="mode-btn active" data-mode="list">Ketik Langsung</button>
+          <button type="button" class="mode-btn" data-mode="csv">Unggah File CSV</button>
         </div>
         <div id="mode-list">
           <div class="row-list" id="recipient-list"></div>
@@ -129,8 +129,10 @@ function renderDynamicForm(letterType) {
             <input type="file" id="recipients_csv" accept=".csv">
           </div>
           <p class="csv-hint">
-            Kolom wajib: <code id="csv-columns-hint"></code>.
-            <a href="#" id="download-template">Unduh contoh template CSV</a>
+            Cocok kalau penerimanya banyak: siapkan di Excel, lalu simpan
+            sebagai CSV. Baris pertama berisi judul kolom ini, persis
+            seperti tertulis: <code id="csv-columns-hint"></code>.
+            <a href="#" id="download-template">Unduh contoh file CSV</a>
           </p>
         </div>
       </section>
@@ -138,10 +140,15 @@ function renderDynamicForm(letterType) {
       <section class="step">
         <div class="step-head"><span class="step-num"></span><h2>Buat Dokumen</h2></div>
         <div class="submit-area">
-          <div class="stamp" id="stamp">SIAP<br>DIKIRIM</div>
-          <button type="button" class="preview-btn" id="preview-btn" disabled>Preview Penerima Pertama</button>
-          <button type="submit" class="submit" id="submit-btn">Generate &amp; Unduh ZIP</button>
+          <div class="stamp" id="stamp">SIAP<br>DIBUAT</div>
+          <button type="button" class="preview-btn" id="preview-btn" disabled>Pratinjau Surat Pertama</button>
+          <button type="submit" class="submit" id="submit-btn">Buat Surat &amp; Unduh</button>
         </div>
+        <small class="field-hint submit-hint">
+          Disarankan lihat <em>Pratinjau Surat Pertama</em> dulu untuk memastikan
+          isinya benar, baru buat semua surat. Hasilnya diunduh sebagai satu
+          file ZIP berisi PDF tiap penerima.
+        </small>
         <div class="status" id="status" role="status" aria-live="polite"></div>
         <div class="progress-wrap" id="progress-wrap">
           <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>

@@ -250,7 +250,7 @@ def _validate_email_config(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Kirim email perlu tepat satu field bertipe Email di level penerima "
+                "Kirim email perlu tepat satu isian berjenis Email yang beda tiap penerima "
                 "sebagai alamat tujuan. Sekarang ada "
                 f"{len(email_recipient_fields)}."
             ),
@@ -286,8 +286,8 @@ def _validate_whatsapp_config(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Notifikasi WhatsApp perlu tepat satu field bertipe Telepon/WA di "
-                f"level penerima sebagai nomor tujuan. Sekarang ada {len(phone_recipient_fields)}."
+                "Notifikasi WhatsApp perlu tepat satu isian berjenis Telepon / WA yang "
+                f"beda tiap penerima sebagai nomor tujuan. Sekarang ada {len(phone_recipient_fields)}."
             ),
         )
     if not message:

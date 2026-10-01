@@ -12,8 +12,18 @@ from app.core.formatters import (
     format_tanggal_indonesia,
 )
 from app.models.letter_type import FieldType, LetterField
-from app.services.document_generator import DocumentGenerationError, generate_pdf_from_template
+from app.services.document_generator import (
+    DocumentGenerationError,
+    convert_many_docx_to_pdf,
+    generate_pdf_from_template,
+    render_docx,
+)
 from app.services.pdf_merger import PdfMergeError, merge_pdfs
+
+
+# Jumlah dokumen per panggilan LibreOffice. Cukup besar untuk menghapus
+# overhead start-up, cukup kecil agar progress bar tetap bergerak.
+CONVERT_CHUNK_SIZE = 20
 
 
 class DynamicBatchGenerationError(Exception):
@@ -126,57 +136,86 @@ def generate_batch(
 
     final_pdf_paths: list[str] = []
     used_filenames: dict[str, int] = {}
+    cover_dir = working_path / "cover_letters"
+    cover_dir.mkdir(parents=True, exist_ok=True)
 
-    for index, recipient_values in enumerate(recipients, start=1):
-        label = _build_recipient_label(recipient_values, recipient_fields) or f"Penerima {index}"
+    # Diproses per kelompok: isi semua template di kelompok, convert ke PDF
+    # dalam SATU panggilan LibreOffice (start-up-nya yang lambat, bukan
+    # konversinya), baru gabung dengan lampiran. Kelompok dibatasi supaya
+    # progress tetap bergerak dan satu panggilan tidak terlalu lama.
+    for chunk_start in range(0, len(recipients), CONVERT_CHUNK_SIZE):
+        chunk = list(
+            enumerate(recipients[chunk_start : chunk_start + CONVERT_CHUNK_SIZE], start=chunk_start + 1)
+        )
+
+        prepared: list[tuple[int, dict, str, dict]] = []  # index, values, label, context
+        docx_paths: list[str] = []
+        for index, recipient_values in chunk:
+            label = _build_recipient_label(recipient_values, recipient_fields) or f"Penerima {index}"
+            try:
+                context = build_context(base_info, custom_batch_values, batch_fields, recipient_values, recipient_fields)
+                docx_path = str(cover_dir / f"cover_{index}.docx")
+                render_docx(template_path, context, docx_path)
+            except DocumentGenerationError as e:
+                raise DynamicBatchGenerationError(
+                    recipient_index=index, recipient_label=label, original_error=e
+                ) from e
+            prepared.append((index, recipient_values, label, context))
+            docx_paths.append(docx_path)
+
         try:
-            context = build_context(base_info, custom_batch_values, batch_fields, recipient_values, recipient_fields)
-
-            cover_letter_pdf = generate_pdf_from_template(
-                template_path=template_path,
-                context=context,
-                working_dir=str(working_path / "cover_letters"),
-                output_filename_stem=f"cover_{index}",
-            )
-
-            filename_stem = build_generic_recipient_filename(label, index)
-            used_filenames[filename_stem] = used_filenames.get(filename_stem, 0) + 1
-            if used_filenames[filename_stem] > 1:
-                filename_stem = f"{filename_stem} ({used_filenames[filename_stem]})"
-            final_pdf_path = str(individual_dir / f"{filename_stem}.pdf")
-
-            merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
-            final_pdf_paths.append(final_pdf_path)
-
-            if manifest_out is not None:
-                manifest_out.append(
-                    {
-                        "index": index,
-                        "label": label,
-                        "pdf_path": final_pdf_path,
-                        # Nilai mentah penerima — dipakai mencari alamat email/no
-                        # WA (field manual, tidak ikut ke `context`).
-                        "recipient_values": recipient_values,
-                        # Nilai untuk merender template email/WA: gabungan field
-                        # batch + penerima yang SUDAH diformat (tanggal Indonesia
-                        # dll), plus nilai mentah sebagai fallback untuk field
-                        # manual. Jadi {program_studi} (batch) & {nama_dosen}
-                        # (penerima) sama-sama tersedia.
-                        "render_values": {**recipient_values, **context},
-                    }
-                )
-
-            # Dilaporkan setelah merge selesai, bukan sebelum, supaya angka
-            # progress mencerminkan dokumen yang benar-benar sudah jadi.
-            if progress_callback:
-                progress_callback(index, len(recipients))
-
-        except (DocumentGenerationError, PdfMergeError) as e:
+            cover_pdfs = convert_many_docx_to_pdf(docx_paths, str(cover_dir))
+        except DocumentGenerationError as e:
+            first_index, _, first_label, _ = prepared[0]
             raise DynamicBatchGenerationError(
-                recipient_index=index,
-                recipient_label=label,
-                original_error=e,
+                recipient_index=first_index, recipient_label=first_label, original_error=e
             ) from e
+
+        for (index, recipient_values, label, context), cover_letter_pdf in zip(prepared, cover_pdfs):
+            try:
+                if cover_letter_pdf is None:
+                    raise DocumentGenerationError(
+                        f"LibreOffice tidak menghasilkan PDF untuk cover_{index}.docx."
+                    )
+
+                filename_stem = build_generic_recipient_filename(label, index)
+                used_filenames[filename_stem] = used_filenames.get(filename_stem, 0) + 1
+                if used_filenames[filename_stem] > 1:
+                    filename_stem = f"{filename_stem} ({used_filenames[filename_stem]})"
+                final_pdf_path = str(individual_dir / f"{filename_stem}.pdf")
+
+                merge_pdfs(pdf_paths=[cover_letter_pdf, *lampiran_paths], output_path=final_pdf_path)
+                final_pdf_paths.append(final_pdf_path)
+
+                if manifest_out is not None:
+                    manifest_out.append(
+                        {
+                            "index": index,
+                            "label": label,
+                            "pdf_path": final_pdf_path,
+                            # Nilai mentah penerima — dipakai mencari alamat email/no
+                            # WA (field manual, tidak ikut ke `context`).
+                            "recipient_values": recipient_values,
+                            # Nilai untuk merender template email/WA: gabungan field
+                            # batch + penerima yang SUDAH diformat (tanggal Indonesia
+                            # dll), plus nilai mentah sebagai fallback untuk field
+                            # manual. Jadi {program_studi} (batch) & {nama_dosen}
+                            # (penerima) sama-sama tersedia.
+                            "render_values": {**recipient_values, **context},
+                        }
+                    )
+
+                # Dilaporkan setelah merge selesai, bukan sebelum, supaya angka
+                # progress mencerminkan dokumen yang benar-benar sudah jadi.
+                if progress_callback:
+                    progress_callback(index, len(recipients))
+
+            except (DocumentGenerationError, PdfMergeError) as e:
+                raise DynamicBatchGenerationError(
+                    recipient_index=index,
+                    recipient_label=label,
+                    original_error=e,
+                ) from e
 
     zip_path = str(working_path / "hasil_batch.zip")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:

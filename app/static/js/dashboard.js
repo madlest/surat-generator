@@ -52,11 +52,7 @@ function makeCard(t) {
   name.className = "type-card-name";
   name.textContent = t.name;
 
-  const slug = document.createElement("span");
-  slug.className = "type-card-slug";
-  slug.textContent = t.slug;
-
-  card.append(mark, name, slug);
+  card.append(mark, name);
   card.addEventListener("click", () => handlers.onSelectType(t.unit_slug, t.slug));
 
   // Tombol ubah diletakkan di dalam kartu, jadi kliknya perlu dihentikan

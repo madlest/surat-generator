@@ -1,11 +1,39 @@
+import shutil
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
 
+from app.core.config import settings
 from app.routers import admin, auth, generate, superadmin
 
-app = FastAPI(title="Surat Generator")
+
+def _clear_orphan_job_dirs() -> None:
+    """
+    Job disimpan di memori, jadi setelah restart semua job lama hilang tetapi
+    folder kerjanya (PDF + ZIP) tertinggal di temp_dir dan tidak pernah
+    dibersihkan. Karena tidak ada job yang bisa diunduh lagi, aman dihapus.
+    """
+    for job_dir in Path(settings.temp_dir).glob("job_*"):
+        shutil.rmtree(job_dir, ignore_errors=True)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _clear_orphan_job_dirs()
+    yield
+
+
+app = FastAPI(title="Surat Generator", lifespan=lifespan)
+
+# HTML/CSS/JS dikirim tanpa build step, jadi kompresi di sini memangkas
+# transfer ~70%. File ZIP/PDF hasil generate sudah terkompres dan dilewati
+# karena ukurannya tak turun berarti — cukup respons teks di atas 1 KB.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.include_router(auth.router)
 app.include_router(superadmin.router)
