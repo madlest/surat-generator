@@ -1,10 +1,18 @@
 # app/services/document_generator.py
 import subprocess
+import threading
 from pathlib import Path
 
 from docxtpl import DocxTemplate
 
 from app.core.config import settings
+
+
+# Dua proses soffice yang jalan bersamaan memakai profil pengguna yang sama
+# saling berebut (yang kedua bisa gagal atau diam-diam menyerahkan kerjanya ke
+# yang pertama). Diserialkan lewat lock; batch besar tetap cepat karena satu
+# panggilan mengonversi banyak file sekaligus.
+_soffice_lock = threading.Lock()
 
 
 class DocumentGenerationError(Exception):
@@ -35,18 +43,19 @@ def convert_docx_to_pdf(docx_path: str, output_dir: str) -> str:
 
     Mengembalikan path lengkap ke file PDF hasil convert.
     """
-    result = subprocess.run(
-        [
-            settings.soffice_path,
-            "--headless",
-            "--convert-to", "pdf",
-            "--outdir", output_dir,
-            docx_path,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=60,  # jaga-jaga kalau LibreOffice hang
-    )
+    with _soffice_lock:
+        result = subprocess.run(
+            [
+                settings.soffice_path,
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", output_dir,
+                docx_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,  # jaga-jaga kalau LibreOffice hang
+        )
 
     if result.returncode != 0:
         raise DocumentGenerationError(
@@ -64,6 +73,42 @@ def convert_docx_to_pdf(docx_path: str, output_dir: str) -> str:
         )
 
     return pdf_path
+
+
+def convert_many_docx_to_pdf(docx_paths: list[str], output_dir: str) -> list[str | None]:
+    """
+    Convert banyak docx sekaligus dalam SATU proses LibreOffice. Start-up
+    LibreOffice memakan sebagian besar waktu per dokumen, jadi satu panggilan
+    untuk N file jauh lebih cepat daripada N panggilan (~5x untuk 10 file).
+
+    Mengembalikan list path PDF sejajar dengan docx_paths; entri None berarti
+    file itu gagal dikonversi — pemanggil yang menentukan penanganannya.
+    """
+    if not docx_paths:
+        return []
+
+    with _soffice_lock:
+        result = subprocess.run(
+            [
+                settings.soffice_path,
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", output_dir,
+                *docx_paths,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60 + 10 * len(docx_paths),
+        )
+
+    pdf_paths = [str(Path(output_dir) / (Path(p).stem + ".pdf")) for p in docx_paths]
+    outputs = [p if Path(p).exists() else None for p in pdf_paths]
+    if result.returncode != 0 and not any(outputs):
+        raise DocumentGenerationError(
+            "LibreOffice gagal convert dokumen ke PDF.\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+    return outputs
 
 
 def generate_pdf_from_template(
